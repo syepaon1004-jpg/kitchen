@@ -395,7 +395,7 @@ export default function GamePlay() {
         </div>
 
         {/* 오른쪽: 조미료대 - 밝은 선반 스타일 */}
-        <div className="w-48 flex flex-col my-8">
+        <div className="w-[230px] flex flex-col my-8">
           <SeasoningCounter onSelectSeasoning={handleSelectSeasoning} />
         </div>
       </div>

@@ -23,11 +23,15 @@ export default function SeasoningCounter({ onSelectSeasoning }: SeasoningCounter
     return req
   }
   const requiredFor = getRequiredForCurrentWoks()
-  const slots = 16
-  const gridItems: (Seasoning | null)[] = Array.from({ length: slots }, (_, i) => seasonings[i] ?? null)
+  
+  // 열을 3개로 고정, 조미료 개수에 따라 행이 늘어남
+  const cols = 3
+  const rows = Math.ceil(seasonings.length / cols) || 1
+  const totalSlots = rows * cols
+  const gridItems: (Seasoning | null)[] = Array.from({ length: totalSlots }, (_, i) => seasonings[i] ?? null)
 
   return (
-    <div className="w-full h-full p-4 bg-gradient-to-br from-orange-50 via-yellow-50 to-orange-50 border-2 border-orange-200 rounded-xl shadow-xl flex flex-col"
+    <div className="w-full h-full p-3 bg-gradient-to-br from-orange-50 via-yellow-50 to-orange-50 border-2 border-orange-200 rounded-xl shadow-xl flex flex-col"
          style={{
            backgroundImage: `
              linear-gradient(135deg, 
@@ -40,20 +44,20 @@ export default function SeasoningCounter({ onSelectSeasoning }: SeasoningCounter
       <div className="text-xs font-bold text-orange-800 mb-3 px-2 py-1 bg-white/70 rounded text-center tracking-wider border border-orange-300">
         🧂 조미료 선반
       </div>
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-2.5">
         {gridItems.map((s, i) =>
           s ? (
             <button
               key={s.id}
               type="button"
               onClick={() => onSelectSeasoning(s, requiredFor[s.seasoning_name]?.amount ?? 10, requiredFor[s.seasoning_name]?.unit ?? s.base_unit)}
-              className="w-full min-h-[60px] max-w-[80px] mx-auto py-2 px-2 rounded-lg bg-white hover:bg-orange-50 border-2 border-orange-200 hover:border-orange-300 shadow-md hover:shadow-lg text-orange-900 text-xs font-bold transition-all flex flex-col items-center justify-center"
+              className="w-full min-h-[70px] py-2 px-1.5 rounded-lg bg-white hover:bg-orange-50 border-2 border-orange-200 hover:border-orange-300 shadow-md hover:shadow-lg text-orange-900 text-xs font-bold transition-all flex flex-col items-center justify-center"
               style={{
                 boxShadow: 'inset 0 1px 2px rgba(255,255,255,1), 0 2px 6px rgba(0,0,0,0.1)'
               }}
             >
-              <div className="text-xl mb-1">{getSeasoningIcon(s.seasoning_name)}</div>
-              <span className="truncate w-full text-center leading-tight">{s.seasoning_name}</span>
+              <div className="text-xl mb-0.5">{getSeasoningIcon(s.seasoning_name)}</div>
+              <span className="w-full text-center leading-tight text-[11px]">{s.seasoning_name}</span>
               {requiredFor[s.seasoning_name] && (
                 <span className="text-[10px] text-orange-600 mt-0.5 font-medium">
                   {requiredFor[s.seasoning_name].amount}{requiredFor[s.seasoning_name].unit}
@@ -61,7 +65,7 @@ export default function SeasoningCounter({ onSelectSeasoning }: SeasoningCounter
               )}
             </button>
           ) : (
-            <div key={`empty-${i}`} className="min-h-[60px] max-w-[80px] mx-auto rounded-lg bg-gray-100 border border-gray-200" />
+            <div key={`empty-${i}`} className="min-h-[70px] rounded-lg bg-gray-100 border border-gray-200" />
           )
         )}
       </div>
