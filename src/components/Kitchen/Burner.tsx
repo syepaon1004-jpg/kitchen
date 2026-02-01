@@ -109,10 +109,10 @@ export default function Burner({ burnerNumber }: BurnerProps) {
       {/* 온도 게이지 (컴팩트) */}
       <div className="w-full max-w-[160px]">
         <div className="flex items-center justify-between mb-0.5">
-          <span className="text-[10px] lg:text-[10px] font-bold text-gray-700">
+          <span className="text-sm font-bold text-gray-700">
             {wok.hasWater ? '💧' : '🌡️'}
           </span>
-          <span className={`text-xs lg:text-xs font-bold px-1.5 lg:px-2 py-0.5 lg:py-1 rounded ${
+          <span className={`text-sm font-bold px-2 py-1 rounded ${
             wok.hasWater ? (
               wok.waterTemperature >= WOK_TEMP.WATER_BOIL ? 'bg-blue-500 text-white' :
               'bg-blue-200 text-gray-700'
@@ -190,8 +190,8 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           {wok.hasWater && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <div className="text-3xl">💧</div>
-                <div className="text-[10px] font-bold text-blue-700 mt-1">
+                <div className="text-4xl">💧</div>
+                <div className="text-sm font-bold text-blue-700 mt-1">
                   {Math.round(wok.waterTemperature)}°C
                 </div>
               </div>
@@ -245,7 +245,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
 
           {wok.currentMenu && !wok.hasWater && (
             <span 
-              className="text-white text-[10px] font-bold text-center px-2 drop-shadow-lg z-10 cursor-pointer"
+              className="text-white text-sm font-bold text-center px-2 drop-shadow-lg z-10 cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation()
                 if (wok.state === 'CLEAN' && wok.currentMenu) {
@@ -351,7 +351,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
                         setHeatLevel(burnerNumber, 1)
                         setShowRadialMenu(false)
                       }}
-                      className={`w-10 h-10 rounded-full shadow-xl flex items-center justify-center text-xs font-bold ${
+                      className={`w-10 h-10 rounded-full shadow-xl flex items-center justify-center text-sm font-bold ${
                         wok.heatLevel === 1
                           ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white ring-2 ring-yellow-300'
                           : 'bg-white text-gray-600 hover:bg-gray-100'
@@ -372,7 +372,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
                         setHeatLevel(burnerNumber, 2)
                         setShowRadialMenu(false)
                       }}
-                      className={`w-10 h-10 rounded-full shadow-xl flex items-center justify-center text-xs font-bold ${
+                      className={`w-10 h-10 rounded-full shadow-xl flex items-center justify-center text-sm font-bold ${
                         wok.heatLevel === 2
                           ? 'bg-gradient-to-br from-orange-400 to-red-500 text-white ring-2 ring-orange-300'
                           : 'bg-white text-gray-600 hover:bg-gray-100'
@@ -393,7 +393,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
                         setHeatLevel(burnerNumber, 3)
                         setShowRadialMenu(false)
                       }}
-                      className={`w-10 h-10 rounded-full shadow-xl flex items-center justify-center text-xs font-bold ${
+                      className={`w-10 h-10 rounded-full shadow-xl flex items-center justify-center text-sm font-bold ${
                         wok.heatLevel === 3
                           ? 'bg-gradient-to-br from-red-500 to-red-700 text-white ring-2 ring-red-300'
                           : 'bg-white text-gray-600 hover:bg-gray-100'
@@ -408,7 +408,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
             )}
           </AnimatePresence>
         </div>
-        <div className={`text-[10px] mt-1 font-bold px-1.5 py-0.5 rounded ${
+        <div className={`text-sm mt-1 font-bold px-2 py-1 rounded ${
           wok.state === 'BURNED' ? 'text-white bg-red-600/90' : 
           wok.state === 'OVERHEATING' ? 'text-white bg-orange-500/90' : 
           'text-gray-700 bg-gray-200/80'
@@ -446,7 +446,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           </span>
         )}
       </div>
-      <span className="text-[10px] text-gray-700 font-bold px-2 py-0.5 bg-gray-200/80 rounded-full border border-gray-300">
+      <span className="text-sm text-gray-700 font-bold px-2 py-1 bg-gray-200/80 rounded-full border border-gray-300">
         화구{burnerNumber}
       </span>
       </div>
@@ -459,7 +459,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
             type="button"
             onClick={() => washWok(burnerNumber)}
             disabled={wok.isOn}
-            className={`px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-md transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-white text-sm font-bold shadow-md transition-all ${
               wok.isOn 
                 ? 'bg-gray-400 cursor-not-allowed opacity-50' 
                 : wok.state === 'BURNED'
@@ -474,7 +474,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
         <button
           type="button"
           onClick={() => toggleBurner(burnerNumber)}
-          className={`px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-md transition-all ${
+          className={`px-3 py-1.5 rounded-lg text-white text-sm font-bold shadow-md transition-all ${
             wok.isOn
               ? 'bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 animate-pulse'
               : 'bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600'
@@ -488,7 +488,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           <button
             type="button"
             onClick={() => toggleBurner(burnerNumber)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all ${
+            className={`px-4 py-1.5 rounded-lg text-sm font-bold shadow-md transition-all ${
               wok.isOn 
                 ? 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white' 
                 : 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white'
@@ -500,7 +500,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           {wok.currentMenu && (
             <div className="flex flex-col gap-1 items-center">
               {/* 진행 상황 (간소화) */}
-              <div className="text-[9px] text-gray-700 font-bold px-2 py-0.5 bg-white/80 rounded border border-gray-300">
+              <div className="text-sm text-gray-700 font-bold px-2 py-1 bg-white/80 rounded border border-gray-300">
                 {(() => {
                   const recipe = useGameStore.getState().getRecipeByMenuName(wok.currentMenu)
                   const totalSteps = recipe?.steps?.length ?? 0
@@ -527,16 +527,9 @@ export default function Burner({ burnerNumber }: BurnerProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    const recipe = useGameStore.getState().getRecipeByMenuName(wok.currentMenu!)
-                    const totalSteps = recipe?.steps?.length ?? 0
-                    const isComplete = wok.currentStep >= totalSteps
-                    if (!isComplete) {
-                      alert(`조리 미완료 (${wok.currentStep}/${totalSteps})`)
-                      return
-                    }
                     serve(burnerNumber)
                   }}
-                  className={`px-2 py-1 rounded text-xs font-bold transition-all shadow-sm ${
+                  className={`px-2 py-1 rounded text-sm font-bold transition-all shadow-sm ${
                     (() => {
                       const recipe = useGameStore.getState().getRecipeByMenuName(wok.currentMenu!)
                       const totalSteps = recipe?.steps?.length ?? 0
