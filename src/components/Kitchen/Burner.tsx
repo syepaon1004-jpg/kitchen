@@ -91,7 +91,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
 
   return (
     <>
-      {/* Radial Menu 활성화 시 배경 오버레이 (body에 포탈) */}
+      {/* Radial Menu 활성화 시 배경 오버레이 (데스크톱 전용) */}
       <AnimatePresence>
         {showRadialMenu && (
           <motion.div
@@ -99,7 +99,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/50 z-[100]"
+            className="hidden lg:block fixed inset-0 bg-black/50 z-[100]"
             onClick={() => setShowRadialMenu(false)}
           />
         )}
@@ -157,9 +157,14 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           animate={wokAnimation[wok.position]}
           transition={{ duration: 0.8, ease: 'easeInOut' }}
           className="absolute top-0 z-10 flex flex-col items-center cursor-pointer"
-          onClick={() => {
+          onClick={(e) => {
             if (wok.state === 'CLEAN' && wok.currentMenu) {
-              setShowRadialMenu(!showRadialMenu)
+              // 데스크톱에서만 radial menu 표시 + 이벤트 전파 중단
+              if (window.innerWidth >= 1024) {
+                e.stopPropagation()
+                setShowRadialMenu(!showRadialMenu)
+              }
+              // 모바일에서는 이벤트가 부모로 전파되어 하단바 표시됨
             }
           }}
         >
@@ -247,9 +252,13 @@ export default function Burner({ burnerNumber }: BurnerProps) {
             <span 
               className="text-white text-sm lg:text-[10px] font-bold text-center px-2 drop-shadow-lg z-10 cursor-pointer"
               onClick={(e) => {
-                e.stopPropagation()
                 if (wok.state === 'CLEAN' && wok.currentMenu) {
-                  setShowRadialMenu(!showRadialMenu)
+                  // 데스크톱에서만 radial menu 표시 + 이벤트 전파 중단
+                  if (window.innerWidth >= 1024) {
+                    e.stopPropagation()
+                    setShowRadialMenu(!showRadialMenu)
+                  }
+                  // 모바일에서는 이벤트가 부모로 전파되어 하단바 표시됨
                 }
               }}
             >
@@ -282,10 +291,10 @@ export default function Burner({ burnerNumber }: BurnerProps) {
             )}
           </AnimatePresence>
           
-          {/* Radial Menu - 웍 클릭 시 나타남 */}
+          {/* Radial Menu - 웍 클릭 시 나타남 (데스크톱 전용) */}
           <AnimatePresence>
             {showRadialMenu && wok.currentMenu && (
-              <>
+              <div className="hidden lg:block">
                 {/* 북쪽 (상단): 볶기 */}
                 <motion.button
                   initial={{ opacity: 0, scale: 0 }}
@@ -409,7 +418,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
                     </motion.button>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </AnimatePresence>
         </div>
@@ -439,9 +448,13 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           boxShadow: 'inset 0 3px 10px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.2)'
         }}
         onClick={(e) => {
-          e.stopPropagation()
           if (wok.state === 'CLEAN' && wok.currentMenu) {
-            setShowRadialMenu(!showRadialMenu)
+            // 데스크톱에서만 radial menu 표시 + 이벤트 전파 중단
+            if (window.innerWidth >= 1024) {
+              e.stopPropagation()
+              setShowRadialMenu(!showRadialMenu)
+            }
+            // 모바일에서는 이벤트가 부모로 전파되어 하단바 표시됨
           }
         }}
       >
