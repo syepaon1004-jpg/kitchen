@@ -109,10 +109,10 @@ export default function Burner({ burnerNumber }: BurnerProps) {
       {/* 온도 게이지 (컴팩트) */}
       <div className="w-full max-w-[160px]">
         <div className="flex items-center justify-between mb-0.5">
-          <span className="text-[10px] font-bold text-gray-700">
+          <span className="text-[10px] lg:text-[10px] font-bold text-gray-700">
             {wok.hasWater ? '💧' : '🌡️'}
           </span>
-          <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+          <span className={`text-xs lg:text-xs font-bold px-1.5 lg:px-2 py-0.5 lg:py-1 rounded ${
             wok.hasWater ? (
               wok.waterTemperature >= WOK_TEMP.WATER_BOIL ? 'bg-blue-500 text-white' :
               'bg-blue-200 text-gray-700'

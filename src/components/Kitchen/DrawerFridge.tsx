@@ -65,7 +65,8 @@ export default function DrawerFridge({ onSelectIngredient, onSelectMultiple }: D
 
   return (
     <>
-      <div className="w-full px-16">
+      {/* Desktop - 기존 스타일 유지 */}
+      <div className="hidden lg:block w-full px-16">
         <div className="grid grid-cols-2 gap-4 p-6 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 border-2 border-gray-300 rounded-xl shadow-xl"
              style={{
                backgroundImage: `
@@ -99,6 +100,47 @@ export default function DrawerFridge({ onSelectIngredient, onSelectMultiple }: D
                        backgroundImage: 'linear-gradient(to right, rgba(150,150,150,0.8), rgba(180,180,180,0.8), rgba(150,150,150,0.8))'
                      }}></div>
                 <div className="text-xs font-bold tracking-wide text-gray-700">{labels[code] ?? code.replace('DRAWER_', '')}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Mobile - 새로운 모바일 스타일 */}
+      <div className="block lg:hidden w-full">
+        <div className="grid grid-cols-2 gap-2 p-3 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 border-2 border-gray-300 rounded-xl shadow-xl"
+             style={{
+               backgroundImage: `
+                 linear-gradient(135deg, 
+                   rgba(255,255,255,0.8) 0%, 
+                   rgba(200,200,200,0.3) 50%, 
+                   rgba(255,255,255,0.8) 100%)
+               `,
+               boxShadow: 'inset 0 2px 6px rgba(255,255,255,0.9), 0 8px 20px rgba(0,0,0,0.15)'
+             }}>
+          {DRAWER_CODES.map((code) => (
+            <button
+              key={code}
+              type="button"
+              onClick={() => handleDrawerClick(code)}
+              className="w-full h-20 rounded-lg bg-gradient-to-br from-gray-100 via-gray-50 to-gray-100 shadow-md hover:shadow-xl border-2 border-gray-300 text-gray-700 font-bold text-xs transition-all flex flex-col items-center justify-center gap-0.5 relative overflow-hidden group"
+              style={{
+                backgroundImage: `
+                  linear-gradient(135deg, 
+                    rgba(255,255,255,0.9) 0%, 
+                    rgba(220,220,220,0.5) 50%, 
+                    rgba(255,255,255,0.9) 100%)
+                `,
+                boxShadow: 'inset 0 2px 4px rgba(255,255,255,1), 0 4px 8px rgba(0,0,0,0.1)'
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative z-10 flex flex-col items-center gap-0.5">
+                <div className="w-12 h-1.5 bg-gray-400 rounded-full shadow-md"
+                     style={{
+                       backgroundImage: 'linear-gradient(to right, rgba(150,150,150,0.8), rgba(180,180,180,0.8), rgba(150,150,150,0.8))'
+                     }}></div>
+                <div className="text-[10px] font-bold tracking-wide text-gray-700">{labels[code] ?? code.replace('DRAWER_', '')}</div>
               </div>
             </button>
           ))}

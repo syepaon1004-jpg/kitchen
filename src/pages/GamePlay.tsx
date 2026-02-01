@@ -64,6 +64,9 @@ export default function GamePlay() {
     lastServeError,
   } = useGameStore()
 
+  // 모바일용 상태 추가
+  const [selectedMenuId, setSelectedMenuId] = useState<string | null>(null)
+
   const [selectedBurner, setSelectedBurner] = useState<number | null>(null)
   const [amountPopup, setAmountPopup] = useState<AmountPopupState>(null)
   const [batchInputPopup, setBatchInputPopup] = useState<BatchInputState>(null)
@@ -297,17 +300,19 @@ export default function GamePlay() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 min-w-[1280px] min-h-screen">
+    <div className="bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 min-h-screen">
       <WokDryingManager />
       <GameHeader />
 
-      {/* 주문서 (상단 중앙 고정) - 주방 알림판 스타일 */}
-      <div className="px-4 py-3 bg-gradient-to-r from-yellow-50 via-white to-yellow-50 border-b-4 border-yellow-400 shadow-md">
-        <MenuQueue onAssignToWok={handleAssignToWok} selectedBurner={selectedBurner} />
-      </div>
+      {/* Desktop Layout - 기존 코드 유지 */}
+      <div className="hidden lg:block">
+        {/* 주문서 (상단 중앙 고정) - 주방 알림판 스타일 */}
+        <div className="px-4 py-3 bg-gradient-to-r from-yellow-50 via-white to-yellow-50 border-b-4 border-yellow-400 shadow-md">
+          <MenuQueue onAssignToWok={handleAssignToWok} selectedBurner={selectedBurner} />
+        </div>
 
-      {/* 주방 레이아웃: 왼쪽(싱크대+4호박스) | 중앙(화구+서랍) | 오른쪽(조미료대) */}
-      <div className="flex pb-12 pt-8 px-6">
+        {/* 주방 레이아웃: 왼쪽(싱크대+4호박스) | 중앙(화구+서랍) | 오른쪽(조미료대) */}
+        <div className="flex pb-12 pt-8 px-6">
         {/* 왼쪽: 싱크대(위) + 4호박스(아래) */}
         <div className="w-[230px] flex flex-col gap-4 my-8">
           {/* 싱크대 */}
@@ -398,36 +403,137 @@ export default function GamePlay() {
         <div className="w-[230px] flex flex-col my-8">
           <SeasoningCounter onSelectSeasoning={handleSelectSeasoning} />
         </div>
-      </div>
-
-      {/* 레시피 가이드 */}
-      <div className="py-6 px-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-t-4 border-blue-300">
-        <RecipeGuide />
-      </div>
-
-      {/* 액션 로그 & 화구 사용율 */}
-      <div className="grid grid-cols-2 gap-3 px-4 py-6 bg-gradient-to-br from-gray-100 to-gray-200 border-t-4 border-gray-300 mb-12">
-        <div className="bg-white/80 p-4 rounded-lg border-2 border-gray-300 shadow-md">
-          <h4 className="font-bold text-gray-700 mb-2 text-xs tracking-wider flex items-center gap-2">
-            <span>📋</span> 액션 로그
-          </h4>
-          <ActionLogPanel />
         </div>
-        <div className="bg-white/80 p-4 rounded-lg border-2 border-gray-300 shadow-md">
-          <h4 className="font-bold text-gray-700 mb-2 text-xs tracking-wider flex items-center gap-2">
-            <span>🔥</span> 화구 사용율
-          </h4>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-6 bg-gray-200 rounded-full overflow-hidden border-2 border-gray-300 shadow-inner">
-              <div
-                className="h-full bg-gradient-to-r from-orange-400 via-red-500 to-red-600 rounded-full transition-all shadow-md"
-                style={{ 
-                  width: `${Math.min(100, burnerUsagePercent)}%`,
-                  boxShadow: '0 0 8px rgba(239, 68, 68, 0.4)'
-                }}
-              />
+
+        {/* 레시피 가이드 */}
+        <div className="py-6 px-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-t-4 border-blue-300">
+          <RecipeGuide />
+        </div>
+
+        {/* 액션 로그 & 화구 사용율 */}
+        <div className="grid grid-cols-2 gap-3 px-4 py-6 bg-gradient-to-br from-gray-100 to-gray-200 border-t-4 border-gray-300 mb-12">
+          <div className="bg-white/80 p-4 rounded-lg border-2 border-gray-300 shadow-md">
+            <h4 className="font-bold text-gray-700 mb-2 text-xs tracking-wider flex items-center gap-2">
+              <span>📋</span> 액션 로그
+            </h4>
+            <ActionLogPanel />
+          </div>
+          <div className="bg-white/80 p-4 rounded-lg border-2 border-gray-300 shadow-md">
+            <h4 className="font-bold text-gray-700 mb-2 text-xs tracking-wider flex items-center gap-2">
+              <span>🔥</span> 화구 사용율
+            </h4>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-6 bg-gray-200 rounded-full overflow-hidden border-2 border-gray-300 shadow-inner">
+                <div
+                  className="h-full bg-gradient-to-r from-orange-400 via-red-500 to-red-600 rounded-full transition-all shadow-md"
+                  style={{ 
+                    width: `${Math.min(100, burnerUsagePercent)}%`,
+                    boxShadow: '0 0 8px rgba(239, 68, 68, 0.4)'
+                  }}
+                />
+              </div>
+              <span className="font-mono font-bold text-sm text-gray-700 min-w-[3rem] text-right">{burnerUsagePercent}%</span>
             </div>
-            <span className="font-mono font-bold text-sm text-gray-700 min-w-[3rem] text-right">{burnerUsagePercent}%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Layout - 새로운 모바일 전용 */}
+      <div className="block lg:hidden">
+        {/* 주문서 - 모바일 간소화 */}
+        <div className="px-3 py-1.5 border-b border-gray-200">
+          <MenuQueue onAssignToWok={handleAssignToWok} selectedBurner={selectedBurner} />
+        </div>
+
+        {/* 모바일 메인 레이아웃 */}
+        <div className="relative pb-32 px-4 pt-1">
+          {/* 싱크대 - 왼쪽 구석에 작게 */}
+          <div className="absolute top-1 left-4 w-16 h-16 z-10">
+            <div className="w-full h-full scale-[0.25] origin-top-left">
+              <SinkArea />
+            </div>
+          </div>
+
+          {/* 화구 정삼각형 배치 */}
+          <div className="relative w-full h-[200px] mx-auto max-w-[350px]">
+            {/* 1번 화구 - 상단 중앙 */}
+            <div 
+              className="absolute"
+              style={{
+                left: '50%',
+                top: '0',
+                transform: 'translate(-50%, 0) scale(0.6)',
+                transformOrigin: 'top center',
+              }}
+            >
+              <Burner burnerNumber={1} />
+            </div>
+
+            {/* 2번 화구 - 좌하단 */}
+            <div 
+              className="absolute"
+              style={{
+                left: '50%',
+                top: '70px',
+                transform: 'translate(calc(-50% - 70px), 0) scale(0.6)',
+                transformOrigin: 'top center',
+              }}
+            >
+              <Burner burnerNumber={2} />
+            </div>
+
+            {/* 3번 화구 - 우하단 */}
+            <div 
+              className="absolute"
+              style={{
+                left: '50%',
+                top: '70px',
+                transform: 'translate(calc(-50% + 70px), 0) scale(0.6)',
+                transformOrigin: 'top center',
+              }}
+            >
+              <Burner burnerNumber={3} />
+            </div>
+          </div>
+
+          {/* 서랍냉장고 - 뷰포트 100% 사용, 타이트하게 */}
+          <div className="w-full mx-auto mt-4">
+            <DrawerFridge 
+              onSelectIngredient={handleSelectIngredient}
+              onSelectMultiple={handleSelectMultipleIngredients}
+            />
+          </div>
+        </div>
+
+        {/* 레시피 가이드 - 스크롤 영역 */}
+        <div className="py-6 px-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-t-2 border-blue-300">
+          <RecipeGuide />
+        </div>
+
+        {/* 액션 로그 & 화구 사용율 - 스크롤 영역 */}
+        <div className="px-4 py-6 bg-gradient-to-br from-gray-100 to-gray-200 border-t-2 border-gray-300 mb-12 space-y-4">
+          <div className="bg-white/80 p-4 rounded-lg border-2 border-gray-300 shadow-md">
+            <h4 className="font-bold text-gray-700 mb-2 text-xs tracking-wider flex items-center gap-2">
+              <span>📋</span> 액션 로그
+            </h4>
+            <ActionLogPanel />
+          </div>
+          <div className="bg-white/80 p-4 rounded-lg border-2 border-gray-300 shadow-md">
+            <h4 className="font-bold text-gray-700 mb-2 text-xs tracking-wider flex items-center gap-2">
+              <span>🔥</span> 화구 사용율
+            </h4>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-6 bg-gray-200 rounded-full overflow-hidden border-2 border-gray-300 shadow-inner">
+                <div
+                  className="h-full bg-gradient-to-r from-orange-400 via-red-500 to-red-600 rounded-full transition-all shadow-md"
+                  style={{ 
+                    width: `${Math.min(100, burnerUsagePercent)}%`,
+                    boxShadow: '0 0 8px rgba(239, 68, 68, 0.4)'
+                  }}
+                />
+              </div>
+              <span className="font-mono font-bold text-sm text-gray-700 min-w-[3rem] text-right">{burnerUsagePercent}%</span>
+            </div>
           </div>
         </div>
       </div>
