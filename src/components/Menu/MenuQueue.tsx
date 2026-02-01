@@ -13,7 +13,9 @@ export default function MenuQueue({ onAssignToWok, selectedBurner }: MenuQueuePr
   const cleanWoks = woks.filter((w) => w.state === 'CLEAN' && !w.currentMenu)
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-2">
+    <>
+      {/* Desktop 버전 - 기존 스타일 유지 */}
+      <div className="hidden lg:flex gap-4 overflow-x-auto pb-2">
       {menuQueue.length === 0 && (
         <p className="text-[#757575] text-sm py-2">메뉴가 곧 입장합니다...</p>
       )}
@@ -28,6 +30,49 @@ export default function MenuQueue({ onAssignToWok, selectedBurner }: MenuQueuePr
         />
       ))}
     </div>
+
+      {/* Mobile 버전 - 간소화 */}
+      <div className="flex lg:hidden gap-2 overflow-x-auto pb-1">
+        {menuQueue.length === 0 && (
+          <p className="text-gray-500 text-xs py-1">메뉴 대기중...</p>
+        )}
+        {menuQueue.map((order, index) => {
+          const canAssign = order.status === 'WAITING' && cleanWoks.length > 0
+          return (
+            <div
+              key={order.id}
+              className={`min-w-[100px] p-2 rounded-lg shadow-md ${
+                order.status === 'COMPLETED'
+                  ? 'bg-green-200 border border-green-500'
+                  : order.status === 'COOKING'
+                    ? 'bg-orange-200 border border-orange-500'
+                    : 'bg-yellow-200 border border-yellow-500'
+              }`}
+            >
+              <div className="font-bold text-xs text-gray-800 truncate">{order.menuName}</div>
+              <div className="text-[10px] text-gray-600 mt-0.5">#{index + 1}</div>
+              
+              {order.status === 'WAITING' && canAssign && (
+                <div className="flex gap-1 mt-1.5">
+                  {[1, 2, 3].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => onAssignToWok(order.id, n)}
+                      className={`flex-1 py-1 rounded text-[10px] font-medium ${
+                        selectedBurner === n ? 'bg-blue-500 text-white' : 'bg-white/80 text-gray-700'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </>
   )
 }
 
