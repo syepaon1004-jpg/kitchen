@@ -619,12 +619,10 @@ export default function GamePlay() {
         <div className="h-32 lg:hidden"></div>
 
         {/* 하단 액션바 - 메뉴 선택 또는 웍 액션 (모바일 전용) */}
-        {(selectedMenuId || selectedWokForActions) && (() => {
-          console.log('🔽 하단바 렌더링 - selectedMenuId:', selectedMenuId, 'selectedWokForActions:', selectedWokForActions)
-          return (
-            <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-300 shadow-2xl z-30 p-3">
-              {/* 메뉴 선택 시: 웍 선택 버튼 */}
-              {selectedMenuId && !selectedWokForActions && (
+        {(selectedMenuId || selectedWokForActions) && (
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-300 shadow-2xl z-30 p-3">
+            {/* 메뉴 선택 시: 웍 선택 버튼 */}
+            {selectedMenuId && !selectedWokForActions && (
               <div>
                 <div className="text-xs text-gray-600 mb-2 text-center">웍을 선택하세요</div>
                 <div className="grid grid-cols-3 gap-2">
@@ -736,9 +734,8 @@ export default function GamePlay() {
                 </div>
               ) : null
             })()}
-            </div>
-          )
-        })()}
+          </div>
+        )}
 
         {/* 레시피 가이드 - 스크롤 영역 */}
         <div className="py-6 px-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-t-2 border-blue-300">
