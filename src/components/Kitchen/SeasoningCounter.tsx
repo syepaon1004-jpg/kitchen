@@ -23,7 +23,7 @@ export default function SeasoningCounter({ onSelectSeasoning }: SeasoningCounter
     return req
   }
   const requiredFor = getRequiredForCurrentWoks()
-  const slots = 8
+  const slots = 16
   const gridItems: (Seasoning | null)[] = Array.from({ length: slots }, (_, i) => seasonings[i] ?? null)
 
   return (
@@ -40,7 +40,7 @@ export default function SeasoningCounter({ onSelectSeasoning }: SeasoningCounter
       <div className="text-xs font-bold text-orange-800 mb-3 px-2 py-1 bg-white/70 rounded text-center tracking-wider border border-orange-300">
         🧂 조미료 선반
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         {gridItems.map((s, i) =>
           s ? (
             <button
@@ -75,12 +75,15 @@ function getSeasoningIcon(name: string): string {
     설탕: '🍬',
     간장: '🥢',
     식용유: '🫗',
+    기름: '🫗',
     참기름: '🥜',
     고추가루: '🌶️',
     후추: '⚫',
     다시다: '🥣',
     굴소스: '🦪',
     마늘: '🧄',
+    케첩: '🍅',
+    카레가루: '🍛',
   }
   return icons[name] ?? '🧪'
 }
