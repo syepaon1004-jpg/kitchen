@@ -263,13 +263,18 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           )}
           
           {/* 스모킹 포인트 효과 (간소화) */}
-          <AnimatePresence>
+          <AnimatePresence mode="wait">
             {wok.temperature >= WOK_TEMP.SMOKING_POINT && wok.state !== 'BURNED' && !wok.isStirFrying && !wok.hasWater && (
               <motion.div
+                key={`smoke-${burnerNumber}`}
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: [0.3, 0.7, 0.3], y: [-5, -25] }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 1.5, repeat: Infinity }}
+                exit={{ opacity: 0, y: -30 }}
+                transition={{ 
+                  duration: 1.5, 
+                  repeat: Infinity,
+                  exit: { duration: 0.3 }
+                }}
                 className="absolute -top-8 text-3xl z-5"
               >
                 💨

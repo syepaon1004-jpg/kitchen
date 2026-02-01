@@ -447,7 +447,12 @@ export default function GamePlay() {
       <div className="block lg:hidden relative min-h-screen">
         {/* 주문서 - 모바일 간소화 */}
         <div className="px-3 py-1 border-b border-gray-200">
-          <MenuQueue onAssignToWok={handleAssignToWok} selectedBurner={selectedBurner} />
+          <MenuQueue 
+            onAssignToWok={handleAssignToWok} 
+            selectedBurner={selectedBurner}
+            onSelectMenu={setSelectedMenuId}
+            selectedMenuId={selectedMenuId}
+          />
         </div>
 
         {/* 좌측 사이드바 - 4호박스 냉장고 */}
@@ -608,45 +613,78 @@ export default function GamePlay() {
         {/* 하단 여백 확보 (하단바 공간) */}
         <div className="h-32 lg:hidden"></div>
 
-        {/* 하단 액션바 - 웍 선택 시만 표시 */}
-        {selectedWokForActions && (() => {
-          const selectedWok = woks.find(w => w.burnerNumber === selectedWokForActions)
-          return selectedWok?.currentMenu && selectedWok.state === 'CLEAN' ? (
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-300 shadow-2xl z-30 p-3">
-              <div className="flex flex-col gap-2">
-                {/* 1행: 액션 버튼 (볶기, 물넣기, 뒤집기) */}
+        {/* 하단 액션바 - 메뉴 선택 또는 웍 액션 */}
+        {(selectedMenuId || selectedWokForActions) && (
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-300 shadow-2xl z-30 p-3">
+            {/* 메뉴 선택 시: 웍 선택 버튼 */}
+            {selectedMenuId && !selectedWokForActions && (
+              <div>
+                <div className="text-xs text-gray-600 mb-2 text-center">웍을 선택하세요</div>
                 <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => {
-                      validateAndAdvanceAction(selectedWokForActions, 'STIR_FRY')
-                      setSelectedWokForActions(null)
-                    }}
-                    className="py-3 rounded-lg bg-gradient-to-r from-orange-400 to-red-500 text-white font-bold text-sm shadow-lg active:scale-95 transition-transform"
-                  >
-                    🍳 볶기
-                  </button>
-                  <button
-                    onClick={() => {
-                      validateAndAdvanceAction(selectedWokForActions, 'ADD_WATER')
-                      setSelectedWokForActions(null)
-                    }}
-                    className="py-3 rounded-lg bg-gradient-to-r from-blue-400 to-cyan-500 text-white font-bold text-sm shadow-lg active:scale-95 transition-transform"
-                  >
-                    💧 물넣기
-                  </button>
-                  <button
-                    onClick={() => {
-                      validateAndAdvanceAction(selectedWokForActions, 'FLIP')
-                      setSelectedWokForActions(null)
-                    }}
-                    className="py-3 rounded-lg bg-gradient-to-r from-purple-400 to-pink-500 text-white font-bold text-sm shadow-lg active:scale-95 transition-transform"
-                  >
-                    🔄 뒤집기
-                  </button>
+                  {[1, 2, 3].map((n) => {
+                    const wok = woks.find(w => w.burnerNumber === n)
+                    const isAvailable = wok && wok.state === 'CLEAN' && !wok.currentMenu
+                    return (
+                      <button
+                        key={n}
+                        disabled={!isAvailable}
+                        onClick={() => {
+                          if (selectedMenuId) {
+                            handleAssignToWok(selectedMenuId, n)
+                            setSelectedMenuId(null)
+                          }
+                        }}
+                        className={`py-3 rounded-lg font-bold text-sm shadow-lg transition-all ${
+                          isAvailable
+                            ? 'bg-gradient-to-r from-blue-400 to-blue-600 text-white active:scale-95'
+                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        }`}
+                      >
+                        화구 {n}
+                      </button>
+                    )
+                  })}
                 </div>
+              </div>
+            )}
 
-                {/* 2행: 불 세기 조절 (약, 중, 강) */}
-                {selectedWok.isOn && (
+            {/* 웍 선택 시: 액션 버튼 (2행) */}
+            {selectedWokForActions && (() => {
+              const selectedWok = woks.find(w => w.burnerNumber === selectedWokForActions)
+              return selectedWok?.currentMenu && selectedWok.state === 'CLEAN' ? (
+                <div className="flex flex-col gap-2">
+                  {/* 1행: 액션 버튼 (볶기, 물넣기, 뒤집기) */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => {
+                        validateAndAdvanceAction(selectedWokForActions, 'STIR_FRY')
+                        setSelectedWokForActions(null)
+                      }}
+                      className="py-3 rounded-lg bg-gradient-to-r from-orange-400 to-red-500 text-white font-bold text-sm shadow-lg active:scale-95 transition-transform"
+                    >
+                      🍳 볶기
+                    </button>
+                    <button
+                      onClick={() => {
+                        validateAndAdvanceAction(selectedWokForActions, 'ADD_WATER')
+                        setSelectedWokForActions(null)
+                      }}
+                      className="py-3 rounded-lg bg-gradient-to-r from-blue-400 to-cyan-500 text-white font-bold text-sm shadow-lg active:scale-95 transition-transform"
+                    >
+                      💧 물넣기
+                    </button>
+                    <button
+                      onClick={() => {
+                        validateAndAdvanceAction(selectedWokForActions, 'FLIP')
+                        setSelectedWokForActions(null)
+                      }}
+                      className="py-3 rounded-lg bg-gradient-to-r from-purple-400 to-pink-500 text-white font-bold text-sm shadow-lg active:scale-95 transition-transform"
+                    >
+                      🔄 뒤집기
+                    </button>
+                  </div>
+
+                  {/* 2행: 불 세기 조절 (약, 중, 강) */}
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       onClick={() => {
@@ -688,11 +726,11 @@ export default function GamePlay() {
                       강
                     </button>
                   </div>
-                )}
-              </div>
-            </div>
-          ) : null
-        })()}
+                </div>
+              ) : null
+            })()}
+          </div>
+        )}
 
         {/* 레시피 가이드 - 스크롤 영역 */}
         <div className="py-6 px-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-t-2 border-blue-300">

@@ -6,10 +6,12 @@ import { useEffect, useState } from 'react'
 interface MenuQueueProps {
   onAssignToWok: (orderId: string, burnerNumber: number) => void
   selectedBurner: number | null
+  onSelectMenu?: (menuId: string) => void
+  selectedMenuId?: string | null
 }
 
-export default function MenuQueue({ onAssignToWok, selectedBurner }: MenuQueueProps) {
-  const { menuQueue, woks } = useGameStore()
+export default function MenuQueue({ onAssignToWok, selectedBurner, onSelectMenu, selectedMenuId }: MenuQueueProps) {
+  const { menuQueue, woks, elapsedSeconds } = useGameStore()
   const cleanWoks = woks.filter((w) => w.state === 'CLEAN' && !w.currentMenu)
 
   return (
@@ -31,17 +33,35 @@ export default function MenuQueue({ onAssignToWok, selectedBurner }: MenuQueuePr
       ))}
     </div>
 
-      {/* Mobile 버전 - 간소화 */}
+      {/* Mobile 버전 - 간소화 (메뉴이름 + 타이머만) */}
       <div className="flex lg:hidden gap-2 overflow-x-auto pb-1">
         {menuQueue.length === 0 && (
           <p className="text-gray-500 text-xs py-1">메뉴 대기중...</p>
         )}
         {menuQueue.map((order, index) => {
-          const canAssign = order.status === 'WAITING' && cleanWoks.length > 0
+          const elapsedTime = (elapsedSeconds - order.enteredAt) * 1000
+          const minutes = Math.floor(elapsedTime / 60000)
+          const seconds = Math.floor((elapsedTime % 60000) / 1000)
+          
+          // 시간에 따른 타이머 색상
+          let timerClass = 'text-green-700'
+          if (elapsedTime > MENU_TIMER.CRITICAL_TIME) {
+            timerClass = 'text-red-700 font-bold animate-pulse'
+          } else if (elapsedTime > MENU_TIMER.WARNING_TIME) {
+            timerClass = 'text-orange-700 font-bold'
+          } else if (elapsedTime > MENU_TIMER.TARGET_TIME) {
+            timerClass = 'text-yellow-700'
+          }
+          
           return (
-            <div
+            <button
               key={order.id}
-              className={`min-w-[100px] p-2 rounded-lg shadow-md ${
+              onClick={() => onSelectMenu && onSelectMenu(order.id)}
+              className={`min-w-[90px] p-2 rounded-lg shadow-md transition-all ${
+                selectedMenuId === order.id
+                  ? 'ring-2 ring-blue-500 scale-105'
+                  : ''
+              } ${
                 order.status === 'COMPLETED'
                   ? 'bg-green-200 border border-green-500'
                   : order.status === 'COOKING'
@@ -49,26 +69,13 @@ export default function MenuQueue({ onAssignToWok, selectedBurner }: MenuQueuePr
                     : 'bg-yellow-200 border border-yellow-500'
               }`}
             >
-              <div className="font-bold text-xs text-gray-800 truncate">{order.menuName}</div>
-              <div className="text-[10px] text-gray-600 mt-0.5">#{index + 1}</div>
-              
-              {order.status === 'WAITING' && canAssign && (
-                <div className="flex gap-1 mt-1.5">
-                  {[1, 2, 3].map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => onAssignToWok(order.id, n)}
-                      className={`flex-1 py-1 rounded text-[10px] font-medium ${
-                        selectedBurner === n ? 'bg-blue-500 text-white' : 'bg-white/80 text-gray-700'
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  ))}
+              <div className="font-bold text-[10px] text-gray-800 truncate">{order.menuName}</div>
+              {order.status !== 'COMPLETED' && (
+                <div className={`text-[8px] mt-1 font-mono ${timerClass}`}>
+                  ⏱️ {minutes}:{seconds.toString().padStart(2, '0')}
                 </div>
               )}
-            </div>
+            </button>
           )
         })}
       </div>
