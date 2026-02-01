@@ -537,7 +537,7 @@ export default function GamePlay() {
           </div>
 
           {/* 화구 정삼각형 배치 */}
-          <div className="relative w-full h-[210px] mx-auto max-w-[350px]">
+          <div className="relative w-full h-[160px] mx-auto max-w-[350px]">
             {/* 1번 화구 - 상단 중앙 */}
             <div 
               className="absolute"
