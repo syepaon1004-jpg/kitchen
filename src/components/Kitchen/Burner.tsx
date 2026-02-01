@@ -105,7 +105,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
         )}
       </AnimatePresence>
       
-      <div ref={containerRef} className="flex flex-col items-center gap-2 relative pt-3 pb-2" style={{ minHeight: '320px' }}>
+      <div ref={containerRef} className="flex flex-col items-center gap-2 relative pt-3 pb-0 lg:pb-2" style={{ minHeight: '320px' }}>
       {/* 온도 게이지 (컴팩트) */}
       <div className="w-full max-w-[160px]">
         <div className="flex items-center justify-between mb-0.5">

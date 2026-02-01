@@ -530,14 +530,14 @@ export default function GamePlay() {
         )}
 
         {/* 모바일 메인 레이아웃 */}
-        <div className="relative pb-24 pt-2">
-          {/* 싱크대 - 왼쪽 구석에 작게 */}
-          <div className="absolute top-2 left-4 w-20 h-20 z-10">
+        <div className="relative pt-2">
+          {/* 싱크대 - 왼쪽 구석에 아주 작게 (1/4) */}
+          <div className="absolute top-2 left-2 w-16 h-16 z-10">
             <SinkArea />
           </div>
 
           {/* 화구 정삼각형 배치 */}
-          <div className="relative w-full h-[180px] mx-auto max-w-[350px] mt-2">
+          <div className="relative w-full h-[180px] mx-auto max-w-[350px]">
             {/* 1번 화구 - 상단 중앙 */}
             <div 
               className="absolute"
@@ -597,13 +597,16 @@ export default function GamePlay() {
           </div>
 
           {/* 서랍냉장고 - 뷰포트 100% 사용, 타이트하게 */}
-          <div className="w-full mx-auto px-2 mt-2">
+          <div className="w-full mx-auto px-2">
             <DrawerFridge 
               onSelectIngredient={handleSelectIngredient}
               onSelectMultiple={handleSelectMultipleIngredients}
             />
           </div>
         </div>
+        
+        {/* 하단 여백 확보 (하단바 공간) */}
+        <div className="h-32 lg:hidden"></div>
 
         {/* 하단 액션바 - 웍 선택 시만 표시 */}
         {selectedWokForActions && (() => {
