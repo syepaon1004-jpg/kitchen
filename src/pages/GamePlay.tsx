@@ -55,6 +55,7 @@ export default function GamePlay() {
     targetMenus,
     assignMenuToWok,
     validateAndAdvanceIngredient,
+    validateAndAdvanceAction,
     recordBurnerUsage,
     updateWokTemperatures,
     endGame,
@@ -62,10 +63,14 @@ export default function GamePlay() {
     fridgeViewState,
     openFridgeZoom,
     lastServeError,
+    setHeatLevel,
   } = useGameStore()
 
   // 모바일용 상태 추가
   const [selectedMenuId, setSelectedMenuId] = useState<string | null>(null)
+  const [selectedWokForActions, setSelectedWokForActions] = useState<number | null>(null)
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(false)
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
 
   const [selectedBurner, setSelectedBurner] = useState<number | null>(null)
   const [amountPopup, setAmountPopup] = useState<AmountPopupState>(null)
@@ -439,23 +444,100 @@ export default function GamePlay() {
       </div>
 
       {/* Mobile Layout - 새로운 모바일 전용 */}
-      <div className="block lg:hidden">
+      <div className="block lg:hidden relative min-h-screen">
         {/* 주문서 - 모바일 간소화 */}
-        <div className="px-3 py-1.5 border-b border-gray-200">
+        <div className="px-3 py-1 border-b border-gray-200">
           <MenuQueue onAssignToWok={handleAssignToWok} selectedBurner={selectedBurner} />
         </div>
 
-        {/* 모바일 메인 레이아웃 */}
-        <div className="relative pb-32 px-4 pt-1">
-          {/* 싱크대 - 왼쪽 구석에 작게 */}
-          <div className="absolute top-1 left-4 w-16 h-16 z-10">
-            <div className="w-full h-full scale-[0.25] origin-top-left">
-              <SinkArea />
+        {/* 좌측 사이드바 - 4호박스 냉장고 */}
+        <button
+          onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
+          className="fixed left-0 top-1/3 z-40 bg-blue-500 text-white px-2 py-6 rounded-r-lg shadow-lg text-xs font-bold"
+        >
+          📦
+        </button>
+        {leftSidebarOpen && (
+          <>
+            <div 
+              className="fixed inset-0 bg-black/30 z-40"
+              onClick={() => setLeftSidebarOpen(false)}
+            />
+            <div className="fixed left-0 top-0 bottom-0 w-64 bg-white z-50 shadow-2xl overflow-y-auto">
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-sm">🧊 4호박스 냉장고</h3>
+                  <button
+                    onClick={() => setLeftSidebarOpen(false)}
+                    className="text-gray-500 hover:text-gray-700 text-xl"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {['FRIDGE_LT', 'FRIDGE_RT', 'FRIDGE_LB', 'FRIDGE_RB'].map((code, index) => {
+                    const labels = ['좌상', '우상', '좌하', '우하']
+                    return (
+                      <button
+                        key={code}
+                        onClick={() => {
+                          openFridgeZoom(code as any)
+                          setLeftSidebarOpen(false)
+                        }}
+                        className="h-24 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-gray-300 text-gray-700 font-bold text-xs flex items-center justify-center hover:shadow-lg transition-all"
+                      >
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="text-2xl">❄️</div>
+                          <div>{labels[index]}</div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
+          </>
+        )}
+
+        {/* 우측 사이드바 - 조미료 선반 */}
+        <button
+          onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+          className="fixed right-0 top-1/3 z-40 bg-orange-500 text-white px-2 py-6 rounded-l-lg shadow-lg text-xs font-bold"
+        >
+          🧂
+        </button>
+        {rightSidebarOpen && (
+          <>
+            <div 
+              className="fixed inset-0 bg-black/30 z-40"
+              onClick={() => setRightSidebarOpen(false)}
+            />
+            <div className="fixed right-0 top-0 bottom-0 w-64 bg-white z-50 shadow-2xl overflow-y-auto">
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-sm">🧂 조미료 선반</h3>
+                  <button
+                    onClick={() => setRightSidebarOpen(false)}
+                    className="text-gray-500 hover:text-gray-700 text-xl"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <SeasoningCounter onSelectSeasoning={handleSelectSeasoning} />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* 모바일 메인 레이아웃 */}
+        <div className="relative pb-24 pt-2">
+          {/* 싱크대 - 왼쪽 구석에 작게 */}
+          <div className="absolute top-2 left-4 w-20 h-20 z-10">
+            <SinkArea />
           </div>
 
           {/* 화구 정삼각형 배치 */}
-          <div className="relative w-full h-[200px] mx-auto max-w-[350px]">
+          <div className="relative w-full h-[180px] mx-auto max-w-[350px] mt-2">
             {/* 1번 화구 - 상단 중앙 */}
             <div 
               className="absolute"
@@ -464,6 +546,12 @@ export default function GamePlay() {
                 top: '0',
                 transform: 'translate(-50%, 0) scale(0.6)',
                 transformOrigin: 'top center',
+              }}
+              onClick={() => {
+                const wok = woks.find(w => w.burnerNumber === 1)
+                if (wok?.currentMenu && wok.state === 'CLEAN') {
+                  setSelectedWokForActions(selectedWokForActions === 1 ? null : 1)
+                }
               }}
             >
               <Burner burnerNumber={1} />
@@ -478,6 +566,12 @@ export default function GamePlay() {
                 transform: 'translate(calc(-50% - 70px), 0) scale(0.6)',
                 transformOrigin: 'top center',
               }}
+              onClick={() => {
+                const wok = woks.find(w => w.burnerNumber === 2)
+                if (wok?.currentMenu && wok.state === 'CLEAN') {
+                  setSelectedWokForActions(selectedWokForActions === 2 ? null : 2)
+                }
+              }}
             >
               <Burner burnerNumber={2} />
             </div>
@@ -491,19 +585,111 @@ export default function GamePlay() {
                 transform: 'translate(calc(-50% + 70px), 0) scale(0.6)',
                 transformOrigin: 'top center',
               }}
+              onClick={() => {
+                const wok = woks.find(w => w.burnerNumber === 3)
+                if (wok?.currentMenu && wok.state === 'CLEAN') {
+                  setSelectedWokForActions(selectedWokForActions === 3 ? null : 3)
+                }
+              }}
             >
               <Burner burnerNumber={3} />
             </div>
           </div>
 
           {/* 서랍냉장고 - 뷰포트 100% 사용, 타이트하게 */}
-          <div className="w-full mx-auto mt-4">
+          <div className="w-full mx-auto px-2 mt-2">
             <DrawerFridge 
               onSelectIngredient={handleSelectIngredient}
               onSelectMultiple={handleSelectMultipleIngredients}
             />
           </div>
         </div>
+
+        {/* 하단 액션바 - 웍 선택 시만 표시 */}
+        {selectedWokForActions && (() => {
+          const selectedWok = woks.find(w => w.burnerNumber === selectedWokForActions)
+          return selectedWok?.currentMenu && selectedWok.state === 'CLEAN' ? (
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-300 shadow-2xl z-30 p-3">
+              <div className="flex flex-col gap-2">
+                {/* 1행: 액션 버튼 (볶기, 물넣기, 뒤집기) */}
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => {
+                      validateAndAdvanceAction(selectedWokForActions, 'STIR_FRY')
+                      setSelectedWokForActions(null)
+                    }}
+                    className="py-3 rounded-lg bg-gradient-to-r from-orange-400 to-red-500 text-white font-bold text-sm shadow-lg active:scale-95 transition-transform"
+                  >
+                    🍳 볶기
+                  </button>
+                  <button
+                    onClick={() => {
+                      validateAndAdvanceAction(selectedWokForActions, 'ADD_WATER')
+                      setSelectedWokForActions(null)
+                    }}
+                    className="py-3 rounded-lg bg-gradient-to-r from-blue-400 to-cyan-500 text-white font-bold text-sm shadow-lg active:scale-95 transition-transform"
+                  >
+                    💧 물넣기
+                  </button>
+                  <button
+                    onClick={() => {
+                      validateAndAdvanceAction(selectedWokForActions, 'FLIP')
+                      setSelectedWokForActions(null)
+                    }}
+                    className="py-3 rounded-lg bg-gradient-to-r from-purple-400 to-pink-500 text-white font-bold text-sm shadow-lg active:scale-95 transition-transform"
+                  >
+                    🔄 뒤집기
+                  </button>
+                </div>
+
+                {/* 2행: 불 세기 조절 (약, 중, 강) */}
+                {selectedWok.isOn && (
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => {
+                        setHeatLevel(selectedWokForActions, 1)
+                        setSelectedWokForActions(null)
+                      }}
+                      className={`py-2 rounded-lg font-bold text-sm shadow-md active:scale-95 transition-transform ${
+                        selectedWok.heatLevel === 1
+                          ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white'
+                          : 'bg-gray-200 text-gray-600'
+                      }`}
+                    >
+                      약
+                    </button>
+                    <button
+                      onClick={() => {
+                        setHeatLevel(selectedWokForActions, 2)
+                        setSelectedWokForActions(null)
+                      }}
+                      className={`py-2 rounded-lg font-bold text-sm shadow-md active:scale-95 transition-transform ${
+                        selectedWok.heatLevel === 2
+                          ? 'bg-gradient-to-r from-orange-400 to-red-500 text-white'
+                          : 'bg-gray-200 text-gray-600'
+                      }`}
+                    >
+                      중
+                    </button>
+                    <button
+                      onClick={() => {
+                        setHeatLevel(selectedWokForActions, 3)
+                        setSelectedWokForActions(null)
+                      }}
+                      className={`py-2 rounded-lg font-bold text-sm shadow-md active:scale-95 transition-transform ${
+                        selectedWok.heatLevel === 3
+                          ? 'bg-gradient-to-r from-red-500 to-red-700 text-white'
+                          : 'bg-gray-200 text-gray-600'
+                      }`}
+                    >
+                      강
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null
+        })()}
 
         {/* 레시피 가이드 - 스크롤 영역 */}
         <div className="py-6 px-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-t-2 border-blue-300">
