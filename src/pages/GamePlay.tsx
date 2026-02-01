@@ -735,8 +735,8 @@ export default function GamePlay() {
                   </div>
                 </div>
               ) : null
-            })()
-          </div>
+            })()}
+            </div>
           )
         })()}
 
