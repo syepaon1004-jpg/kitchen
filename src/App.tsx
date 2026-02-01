@@ -23,11 +23,10 @@ function App() {
   }, [])
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col min-h-screen">
       <AppHeader />
-      <main className="flex-1 min-h-0 overflow-hidden flex flex-col min-h-0">
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-          <Routes>
+      <main className="flex-1">
+        <Routes>
           <Route path="/" element={<StoreSelect />} />
           <Route path="/user-login" element={<UserLogin />} />
           <Route path="/level-select" element={<LevelSelect />} />
@@ -36,8 +35,7 @@ function App() {
           <Route path="/user" element={<Navigate to="/user-login" replace />} />
           <Route path="/level" element={<Navigate to="/level-select" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </div>
+        </Routes>
       </main>
       <DebugPanel />
     </div>

@@ -39,6 +39,17 @@ export default function AmountInputPopup({
     else input1Ref.current?.focus()
   }, [woks])
 
+  // ESC 키로 닫기
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancel()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onCancel])
+
   const updateAmount = (burnerNumber: number, delta: number) => {
     setAmounts((prev) => ({
       ...prev,

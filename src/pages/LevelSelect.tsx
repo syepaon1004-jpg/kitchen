@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useGameStore } from '../stores/gameStore'
@@ -12,7 +12,8 @@ const LEVELS: { key: GameLevel; icon: string; desc: string }[] = [
 
 export default function LevelSelect() {
   const navigate = useNavigate()
-  const { currentUser, currentStore, level, setLevel, startGame } = useGameStore()
+  const { currentUser, currentStore, level, setLevel, startGame, preloadStorageData } = useGameStore()
+  const [isLoading, setIsLoading] = useState(false)
 
   // 사용자가 로그인되지 않았거나 매장이 없으면 /user-login으로 리다이렉트
   useEffect(() => {
@@ -22,9 +23,24 @@ export default function LevelSelect() {
   }, [currentUser, currentStore, navigate])
 
   const handleStart = async () => {
-    const session = await startGame()
-    if (session) navigate('/game')
-    else alert('게임 시작에 실패했습니다.')
+    if (!currentStore) return
+    
+    setIsLoading(true)
+    
+    try {
+      // 식자재 데이터 미리 로드
+      await preloadStorageData(currentStore.id)
+      
+      // 게임 시작
+      const session = await startGame()
+      if (session) navigate('/game')
+      else alert('게임 시작에 실패했습니다.')
+    } catch (error) {
+      console.error('게임 시작 오류:', error)
+      alert('게임 시작에 실패했습니다.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (!currentUser || !currentStore) {
@@ -49,11 +65,12 @@ export default function LevelSelect() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.08 }}
             onClick={() => setLevel(key)}
+            disabled={isLoading}
             className={`flex items-center gap-4 py-4 px-6 rounded-xl text-left border-2 transition ${
               level === key
                 ? 'bg-primary/15 border-primary text-primary-dark'
                 : 'bg-white border-[#E0E0E0] text-[#333] hover:border-primary/50'
-            }`}
+            } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <span className="text-3xl">{icon}</span>
             <div>
@@ -65,12 +82,15 @@ export default function LevelSelect() {
       </div>
 
       <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
+        whileHover={!isLoading ? { scale: 1.02 } : {}}
+        whileTap={!isLoading ? { scale: 0.98 } : {}}
         onClick={handleStart}
-        className="py-4 px-10 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary-dark"
+        disabled={isLoading}
+        className={`py-4 px-10 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary-dark ${
+          isLoading ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
       >
-        시작하기
+        {isLoading ? '식자재 데이터 로딩 중...' : '시작하기'}
       </motion.button>
     </div>
   )
