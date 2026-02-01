@@ -754,7 +754,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       console.warn(`화구${burnerNumber}: ${errorMessage}`)
       
       // UI에 표시하기 위해 임시 상태 저장
-      set((s) => ({
+      set(() => ({
         lastServeError: {
           burnerNumber,
           menuName: completedMenuName,
@@ -767,7 +767,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       
       // 3초 후 에러 메시지 제거
       setTimeout(() => {
-        set((s) => ({
+        set(() => ({
           lastServeError: null
         }))
       }, 3000)

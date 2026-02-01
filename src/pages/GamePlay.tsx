@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../stores/gameStore'
 import { selectRandomMenu } from '../stores/gameStore'
@@ -12,7 +12,6 @@ import SinkArea from '../components/Kitchen/SinkArea'
 import Burner from '../components/Kitchen/Burner'
 import WokDryingManager from '../components/Kitchen/WokDryingManager'
 import DrawerFridge from '../components/Kitchen/DrawerFridge'
-import FridgeBox from '../components/Kitchen/FridgeBox'
 import FridgeZoomView from '../components/Kitchen/FridgeZoomView'
 import SeasoningCounter from '../components/Kitchen/SeasoningCounter'
 import AmountInputPopup from '../components/Kitchen/AmountInputPopup'
@@ -58,7 +57,6 @@ export default function GamePlay() {
     validateAndAdvanceIngredient,
     recordBurnerUsage,
     updateWokTemperatures,
-    checkMenuTimers,
     endGame,
     getCurrentStepIngredients,
     fridgeViewState,
@@ -135,8 +133,6 @@ export default function GamePlay() {
     setToast(msg)
     setTimeout(() => setToast(null), 2000)
   }
-
-  const targetWokForIngredient = woks.find((w) => w.currentMenu)?.burnerNumber ?? null
 
   const handleAssignToWok = (orderId: string, burnerNumber: number) => {
     assignMenuToWok(orderId, burnerNumber)
@@ -261,7 +257,7 @@ export default function GamePlay() {
   const handleBatchConfirm = (assignments: Array<{ sku: string; burnerNumber: number; amount: number; raw: any }>) => {
     const results: { burner: number; sku: string; ok: boolean }[] = []
 
-    assignments.forEach(({ sku, burnerNumber, amount, raw }) => {
+    assignments.forEach(({ sku, burnerNumber, amount }) => {
       const wok = woks.find((w) => w.burnerNumber === burnerNumber)
       if (!wok?.currentMenu) return
 

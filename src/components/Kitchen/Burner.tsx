@@ -4,12 +4,6 @@ import { useGameStore } from '../../stores/gameStore'
 import type { WokState } from '../../types/database.types'
 import { WOK_TEMP } from '../../types/database.types'
 
-const COOKING_ACTIONS = [
-  { type: 'STIR_FRY', label: '볶기', icon: '🍳' },
-  { type: 'ADD_WATER', label: '물넣기', icon: '💧' },
-  { type: 'FLIP', label: '뒤집기', icon: '🔄' },
-] as const
-
 interface BurnerProps {
   burnerNumber: number
 }
@@ -23,7 +17,7 @@ const stateColors: Record<WokState, string> = {
 }
 
 export default function Burner({ burnerNumber }: BurnerProps) {
-  const { woks, toggleBurner, serve, validateAndAdvanceAction, updateWok, washWok, emptyWok, startStirFry, stopStirFry, setHeatLevel } = useGameStore()
+  const { woks, toggleBurner, serve, validateAndAdvanceAction, washWok, emptyWok, startStirFry, stopStirFry, setHeatLevel } = useGameStore()
   const wok = woks.find((w) => w.burnerNumber === burnerNumber)
   const [showRadialMenu, setShowRadialMenu] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)

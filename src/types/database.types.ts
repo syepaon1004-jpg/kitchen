@@ -59,6 +59,8 @@ export interface IngredientInventory {
   description?: string
   ingredient_master?: IngredientMaster
   storage_location?: StorageLocation
+  grid_positions?: string  // GridPopup에서 사용하는 위치 정보
+  grid_size?: string       // GridPopup에서 사용하는 크기 정보
 }
 
 export interface Seasoning {
@@ -176,7 +178,7 @@ export const WOK_TEMP = {
     1: 0.78,  // 약불 (0.6 * 1.3)
     2: 1.56,  // 중불 (1.2 * 1.3)
     3: 1.82,  // 강불 (1.4 * 1.3)
-  },
+  } as Record<1 | 2 | 3, number>,
   
   // 재료 투입 시 온도 하락
   COOLING: {
@@ -187,15 +189,15 @@ export const WOK_TEMP = {
     SEASONING: 5, // 조미료
     WATER: 60, // 물
     BROTH: 50, // 육수
-  },
+  } as Record<string, number>,
   
   // 액션별 온도 변화
   ACTION_TEMP: {
     STIR_FRY: 10, // 볶기 (-10°C)
     FLIP: 8, // 뒤집기 (-8°C)
     ADD_WATER: 60, // 물 넣기 (-60°C)
-  },
-} as const
+  } as Record<string, number>,
+}
 
 export type MenuOrderStatus = 'WAITING' | 'COOKING' | 'COMPLETED'
 
