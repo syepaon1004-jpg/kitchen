@@ -53,10 +53,19 @@ export default function MenuQueue({ onAssignToWok, selectedBurner, onSelectMenu,
             timerClass = 'text-yellow-700'
           }
           
+          const canSelect = order.status === 'WAITING' && cleanWoks.length > 0
+          
           return (
             <button
               key={order.id}
-              onClick={() => onSelectMenu && onSelectMenu(order.id)}
+              disabled={!canSelect}
+              onClick={() => {
+                console.log('📱 메뉴 클릭:', order.menuName, 'ID:', order.id, 'canSelect:', canSelect)
+                if (canSelect && onSelectMenu) {
+                  console.log('✅ onSelectMenu 호출')
+                  onSelectMenu(order.id)
+                }
+              }}
               className={`min-w-[90px] p-2 rounded-lg shadow-md transition-all ${
                 selectedMenuId === order.id
                   ? 'ring-2 ring-blue-500 scale-105'
@@ -67,6 +76,8 @@ export default function MenuQueue({ onAssignToWok, selectedBurner, onSelectMenu,
                   : order.status === 'COOKING'
                     ? 'bg-orange-200 border border-orange-500'
                     : 'bg-yellow-200 border border-yellow-500'
+              } ${
+                !canSelect ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
               }`}
             >
               <div className="font-bold text-[10px] text-gray-800 truncate">{order.menuName}</div>
