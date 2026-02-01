@@ -12,6 +12,7 @@ import SinkArea from '../components/Kitchen/SinkArea'
 import Burner from '../components/Kitchen/Burner'
 import WokDryingManager from '../components/Kitchen/WokDryingManager'
 import DrawerFridge from '../components/Kitchen/DrawerFridge'
+import FridgeBox from '../components/Kitchen/FridgeBox'
 import SeasoningCounter from '../components/Kitchen/SeasoningCounter'
 import AmountInputPopup from '../components/Kitchen/AmountInputPopup'
 
@@ -104,11 +105,6 @@ export default function GamePlay() {
   }
 
   const targetWokForIngredient = woks.find((w) => w.currentMenu)?.burnerNumber ?? null
-
-  const handleFridgeClick = async (fridgeCode: string) => {
-    alert(`4호박스 클릭: ${fridgeCode}\n\n(확대/문열기/층선택 기능 추가 예정)`)
-    // 추후 구현: 확대 애니메이션, 층 선택 UI
-  }
 
   const handleAssignToWok = (orderId: string, burnerNumber: number) => {
     assignMenuToWok(orderId, burnerNumber)
@@ -253,23 +249,7 @@ export default function GamePlay() {
             <p className="text-sm text-[#757575]">재료/조미료 투입 대상: 화구{targetWokForIngredient}</p>
           )}
           <DrawerFridge onSelectIngredient={handleSelectIngredient} />
-          
-          {/* 4호박스 (2x2) */}
-          <div className="w-full max-w-[360px]">
-            <h3 className="text-sm font-semibold text-[#333] mb-2">4호박스 냉장고</h3>
-            <div className="grid grid-cols-2 gap-4">
-              {['FRIDGE_LT', 'FRIDGE_RT', 'FRIDGE_LB', 'FRIDGE_RB'].map((code) => (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => handleFridgeClick(code)}
-                  className="w-40 h-32 bg-gradient-to-br from-gray-300 to-gray-500 rounded-lg shadow-md hover:shadow-lg border-2 border-gray-600 text-white font-medium text-sm transition flex items-center justify-center"
-                >
-                  {code.replace('FRIDGE_', '')}
-                </button>
-              ))}
-            </div>
-          </div>
+          <FridgeBox onSelectIngredient={handleSelectIngredient} />
         </div>
 
         {/* 오른쪽: 조미료대 (2행 3열, 독립) */}
