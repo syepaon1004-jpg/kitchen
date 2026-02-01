@@ -537,7 +537,7 @@ export default function GamePlay() {
           </div>
 
           {/* 화구 정삼각형 배치 */}
-          <div className="relative w-full h-[160px] mx-auto max-w-[350px]">
+          <div className="relative w-full h-[250px] mx-auto max-w-[350px]">
             {/* 1번 화구 - 상단 중앙 */}
             <div 
               className="absolute"
@@ -597,7 +597,7 @@ export default function GamePlay() {
           </div>
 
           {/* 서랍냉장고 - 뷰포트 100% 사용, 타이트하게 */}
-          <div className="w-full mx-auto px-2 mt-2">
+          <div className="w-full mx-auto px-2">
             <DrawerFridge 
               onSelectIngredient={handleSelectIngredient}
               onSelectMultiple={handleSelectMultipleIngredients}
