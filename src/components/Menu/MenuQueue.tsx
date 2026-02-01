@@ -38,7 +38,7 @@ export default function MenuQueue({ onAssignToWok, selectedBurner, onSelectMenu,
         {menuQueue.length === 0 && (
           <p className="text-gray-500 text-xs py-1">메뉴 대기중...</p>
         )}
-        {menuQueue.map((order, index) => {
+        {menuQueue.map((order) => {
           const elapsedTime = (elapsedSeconds - order.enteredAt) * 1000
           const minutes = Math.floor(elapsedTime / 60000)
           const seconds = Math.floor((elapsedTime % 60000) / 1000)
@@ -55,15 +55,27 @@ export default function MenuQueue({ onAssignToWok, selectedBurner, onSelectMenu,
           
           const canSelect = order.status === 'WAITING' && cleanWoks.length > 0
           
+          console.log('🍽️ 메뉴 상태:', {
+            menuName: order.menuName,
+            id: order.id,
+            status: order.status,
+            canSelect,
+            cleanWoksCount: cleanWoks.length,
+            isSelected: selectedMenuId === order.id
+          })
+          
           return (
             <button
               key={order.id}
               disabled={!canSelect}
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation() // 이벤트 전파 방지
                 console.log('📱 메뉴 클릭:', order.menuName, 'ID:', order.id, 'canSelect:', canSelect)
                 if (canSelect && onSelectMenu) {
                   console.log('✅ onSelectMenu 호출')
                   onSelectMenu(order.id)
+                } else {
+                  console.log('❌ 선택 불가:', { status: order.status, cleanWoksCount: cleanWoks.length })
                 }
               }}
               className={`min-w-[90px] p-2 rounded-lg shadow-md transition-all ${

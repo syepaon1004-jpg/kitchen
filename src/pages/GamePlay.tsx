@@ -16,6 +16,7 @@ import FridgeZoomView from '../components/Kitchen/FridgeZoomView'
 import SeasoningCounter from '../components/Kitchen/SeasoningCounter'
 import AmountInputPopup from '../components/Kitchen/AmountInputPopup'
 import BatchAmountInputPopup from '../components/Kitchen/BatchAmountInputPopup'
+import GridPopup from '../components/GridPopup'
 
 type AmountPopupState =
   | null
@@ -64,6 +65,7 @@ export default function GamePlay() {
     openFridgeZoom,
     lastServeError,
     setHeatLevel,
+    storageCache,
   } = useGameStore()
 
   // 모바일용 상태 추가
@@ -71,6 +73,22 @@ export default function GamePlay() {
   const [selectedWokForActions, setSelectedWokForActions] = useState<number | null>(null)
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
+  const [selectedFridgeBox, setSelectedFridgeBox] = useState<string | null>(null)
+  const [mobileGridPopup, setMobileGridPopup] = useState<{
+    title: string
+    gridRows: number
+    gridCols: number
+    ingredients: Array<{
+      id: string
+      name: string
+      amount: number
+      unit: string
+      gridPositions: string
+      gridSize: string
+      sku: string
+      raw: any
+    }>
+  } | null>(null)
 
   // 디버깅: selectedMenuId 변경 감지
   useEffect(() => {
@@ -148,8 +166,10 @@ export default function GamePlay() {
   }
 
   const handleAssignToWok = (orderId: string, burnerNumber: number) => {
+    console.log('🔥 메뉴 배정:', orderId, '화구:', burnerNumber)
     assignMenuToWok(orderId, burnerNumber)
     setSelectedBurner(null)
+    setSelectedMenuId(null) // 배정 후 선택 초기화
   }
 
   const handleSelectIngredient = (ingredient: IngredientInventory) => {
@@ -471,39 +491,120 @@ export default function GamePlay() {
           <>
             <div 
               className="fixed inset-0 bg-black/30 z-40"
-              onClick={() => setLeftSidebarOpen(false)}
+              onClick={() => {
+                setLeftSidebarOpen(false)
+                setSelectedFridgeBox(null)
+              }}
             />
             <div className="fixed left-0 top-0 bottom-0 w-64 bg-white z-50 shadow-2xl overflow-y-auto">
               <div className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-sm">🧊 4호박스 냉장고</h3>
                   <button
-                    onClick={() => setLeftSidebarOpen(false)}
+                    onClick={() => {
+                      setLeftSidebarOpen(false)
+                      setSelectedFridgeBox(null)
+                    }}
                     className="text-gray-500 hover:text-gray-700 text-xl"
                   >
                     ✕
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {['FRIDGE_LT', 'FRIDGE_RT', 'FRIDGE_LB', 'FRIDGE_RB'].map((code, index) => {
-                    const labels = ['좌상', '우상', '좌하', '우하']
-                    return (
-                      <button
-                        key={code}
-                        onClick={() => {
-                          openFridgeZoom(code as any)
-                          setLeftSidebarOpen(false)
-                        }}
-                        className="h-24 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-gray-300 text-gray-700 font-bold text-xs flex items-center justify-center hover:shadow-lg transition-all"
-                      >
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="text-2xl">❄️</div>
-                          <div>{labels[index]}</div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
+                
+                {!selectedFridgeBox ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {['FRIDGE_LT', 'FRIDGE_RT', 'FRIDGE_LB', 'FRIDGE_RB'].map((code, index) => {
+                      const labels = ['좌상', '우상', '좌하', '우하']
+                      return (
+                        <button
+                          key={code}
+                          onClick={() => setSelectedFridgeBox(code)}
+                          className="h-24 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-gray-300 text-gray-700 font-bold text-xs flex items-center justify-center hover:shadow-lg transition-all"
+                        >
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="text-2xl">❄️</div>
+                            <div>{labels[index]}</div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <div className="text-sm font-bold text-gray-800 text-center mb-2">
+                      {['좌상', '우상', '좌하', '우하'][['FRIDGE_LT', 'FRIDGE_RT', 'FRIDGE_LB', 'FRIDGE_RB'].indexOf(selectedFridgeBox)]}
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        const cacheKey = `${selectedFridgeBox}_F1`
+                        const cachedData = storageCache[cacheKey]
+                        if (!cachedData) {
+                          alert('이 층에 등록된 식자재가 없습니다.')
+                          return
+                        }
+                        setMobileGridPopup({
+                          title: cachedData.title,
+                          gridRows: cachedData.gridRows,
+                          gridCols: cachedData.gridCols,
+                          ingredients: cachedData.ingredients.map((ing: any) => ({
+                            id: ing.id,
+                            name: ing.ingredient_master?.ingredient_name ?? ing.sku_full,
+                            amount: ing.standard_amount,
+                            unit: ing.standard_unit,
+                            gridPositions: ing.grid_positions ?? '1',
+                            gridSize: ing.grid_size ?? '1x1',
+                            sku: ing.sku_full,
+                            raw: ing,
+                          })),
+                        })
+                        setLeftSidebarOpen(false)
+                        setSelectedFridgeBox(null)
+                      }}
+                      className="w-full py-3 rounded-lg bg-white border-2 border-blue-400 text-blue-700 font-bold hover:bg-blue-50 transition shadow-md text-sm"
+                    >
+                      1️⃣ 1층
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        const cacheKey = `${selectedFridgeBox}_F2`
+                        const cachedData = storageCache[cacheKey]
+                        if (!cachedData) {
+                          alert('이 층에 등록된 식자재가 없습니다.')
+                          return
+                        }
+                        setMobileGridPopup({
+                          title: cachedData.title,
+                          gridRows: cachedData.gridRows,
+                          gridCols: cachedData.gridCols,
+                          ingredients: cachedData.ingredients.map((ing: any) => ({
+                            id: ing.id,
+                            name: ing.ingredient_master?.ingredient_name ?? ing.sku_full,
+                            amount: ing.standard_amount,
+                            unit: ing.standard_unit,
+                            gridPositions: ing.grid_positions ?? '1',
+                            gridSize: ing.grid_size ?? '1x1',
+                            sku: ing.sku_full,
+                            raw: ing,
+                          })),
+                        })
+                        setLeftSidebarOpen(false)
+                        setSelectedFridgeBox(null)
+                      }}
+                      className="w-full py-3 rounded-lg bg-white border-2 border-blue-400 text-blue-700 font-bold hover:bg-blue-50 transition shadow-md text-sm"
+                    >
+                      2️⃣ 2층
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedFridgeBox(null)}
+                      className="mt-2 px-4 py-2 rounded bg-gray-300 text-gray-700 text-sm hover:bg-gray-400 transition shadow-md"
+                    >
+                      ← 뒤로
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </>
@@ -541,20 +642,20 @@ export default function GamePlay() {
 
         {/* 모바일 메인 레이아웃 */}
         <div className="relative pt-2">
-          {/* 싱크대 - 왼쪽 구석에 아주 작게 (1/4) */}
-          <div className="absolute top-2 left-2 w-16 h-16 z-10">
+          {/* 싱크대 - 왼쪽 구석에 30x30px */}
+          <div className="absolute top-2 left-2 z-10">
             <SinkArea />
           </div>
 
-          {/* 화구 정삼각형 배치 */}
+          {/* 화구 가로 배치 (1번-왼쪽, 2번-중앙, 3번-오른쪽) */}
           <div className="relative w-full h-[250px] mx-auto max-w-[350px]">
-            {/* 1번 화구 - 상단 중앙 */}
+            {/* 1번 화구 - 왼쪽 */}
             <div 
               className="absolute"
               style={{
                 left: '50%',
-                top: '0',
-                transform: 'translate(-50%, 0) scale(0.6)',
+                top: '45px',
+                transform: 'translate(calc(-50% - 95px), 0) scale(0.6)',
                 transformOrigin: 'top center',
               }}
               onClick={() => {
@@ -567,13 +668,13 @@ export default function GamePlay() {
               <Burner burnerNumber={1} />
             </div>
 
-            {/* 2번 화구 - 좌하단 */}
+            {/* 2번 화구 - 중앙 */}
             <div 
               className="absolute"
               style={{
                 left: '50%',
-                top: '70px',
-                transform: 'translate(calc(-50% - 70px), 0) scale(0.6)',
+                top: '45px',
+                transform: 'translate(-50%, 0) scale(0.6)',
                 transformOrigin: 'top center',
               }}
               onClick={() => {
@@ -586,13 +687,13 @@ export default function GamePlay() {
               <Burner burnerNumber={2} />
             </div>
 
-            {/* 3번 화구 - 우하단 */}
+            {/* 3번 화구 - 오른쪽 */}
             <div 
               className="absolute"
               style={{
                 left: '50%',
-                top: '70px',
-                transform: 'translate(calc(-50% + 70px), 0) scale(0.6)',
+                top: '45px',
+                transform: 'translate(calc(-50% + 95px), 0) scale(0.6)',
                 transformOrigin: 'top center',
               }}
               onClick={() => {
@@ -617,6 +718,17 @@ export default function GamePlay() {
         
         {/* 하단 여백 확보 (하단바 공간) */}
         <div className="h-32 lg:hidden"></div>
+
+        {/* 하단 액션바 오버레이 (외부 클릭 시 닫기) */}
+        {(selectedMenuId || selectedWokForActions) && (
+          <div 
+            className="lg:hidden fixed inset-0 z-20"
+            onClick={() => {
+              setSelectedMenuId(null)
+              setSelectedWokForActions(null)
+            }}
+          />
+        )}
 
         {/* 하단 액션바 - 메뉴 선택 또는 웍 액션 (모바일 전용) */}
         {(selectedMenuId || selectedWokForActions) && (
@@ -804,6 +916,26 @@ export default function GamePlay() {
           ingredients={batchInputPopup.ingredients}
           onConfirm={handleBatchConfirm}
           onCancel={() => setBatchInputPopup(null)}
+        />
+      )}
+
+      {/* 모바일 GridPopup (4호박스 사이드바에서 층 선택 시) */}
+      {mobileGridPopup && (
+        <GridPopup
+          title={mobileGridPopup.title}
+          gridRows={mobileGridPopup.gridRows}
+          gridCols={mobileGridPopup.gridCols}
+          ingredients={mobileGridPopup.ingredients}
+          enableMultiSelect={true}
+          onSelect={(ing) => {
+            handleSelectIngredient(ing.raw)
+            setMobileGridPopup(null)
+          }}
+          onSelectMultiple={(selectedIngs) => {
+            handleSelectMultipleIngredients(selectedIngs)
+            setMobileGridPopup(null)
+          }}
+          onClose={() => setMobileGridPopup(null)}
         />
       )}
 

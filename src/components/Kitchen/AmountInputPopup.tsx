@@ -81,34 +81,34 @@ export default function AmountInputPopup({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-3xl w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-        <h3 className="font-bold text-[#333] mb-2 text-xl">{title} 투입량</h3>
-        <p className="text-sm text-[#757575] mb-4">
-          각 화구별로 투입할 양을 지정하세요 (레시피 목표: {requiredAmount}{requiredUnit})
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 lg:p-4">
+      <div className="bg-white rounded-xl max-w-3xl w-full p-3 lg:p-6 shadow-xl flex flex-col max-h-[95vh]">
+        <h3 className="font-bold text-[#333] mb-1 text-sm lg:text-xl">{title} 투입량</h3>
+        <p className="text-[10px] lg:text-sm text-[#757575] mb-2 lg:mb-4">
+          각 화구별로 투입할 양을 지정하세요 (목표: {requiredAmount}{requiredUnit})
         </p>
 
-        {/* 3열: 화구1 | 화구2 | 화구3 */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        {/* Desktop: 3열 | Mobile: 세로 배치 */}
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-2 lg:gap-4 mb-2 lg:mb-6 overflow-y-auto flex-shrink-1">
           {[1, 2, 3].map((burnerNumber) => {
             const wok = woks.find((w) => w.burnerNumber === burnerNumber)
             const hasMenu = !!wok?.currentMenu
             return (
               <div
                 key={burnerNumber}
-                className={`border-2 rounded-lg p-4 ${
+                className={`border-2 rounded-lg p-2 lg:p-4 ${
                   hasMenu ? 'border-primary bg-primary/5' : 'border-[#E0E0E0] bg-gray-50'
                 }`}
               >
-                <div className="text-center mb-3">
-                  <div className="font-semibold text-[#333]">화구{burnerNumber}</div>
-                  <div className="text-xs text-[#757575]">
+                <div className="text-center mb-1.5 lg:mb-3">
+                  <div className="font-semibold text-[#333] text-xs lg:text-base">화구{burnerNumber}</div>
+                  <div className="text-[9px] lg:text-xs text-[#757575]">
                     {wok?.currentMenu ?? '메뉴 없음'}
                   </div>
                 </div>
 
                 {/* 키보드 입력 */}
-                <div className="mb-3">
+                <div className="mb-1.5 lg:mb-3">
                   <input
                     ref={refs[burnerNumber as 1 | 2 | 3]}
                     type="number"
@@ -117,40 +117,37 @@ export default function AmountInputPopup({
                     onChange={(e) => setDirectAmount(burnerNumber, e.target.value)}
                     onKeyDown={handleKeyDown}
                     disabled={!hasMenu}
-                    className="w-full text-center text-2xl font-bold text-primary py-2 border-2 border-primary/30 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none disabled:opacity-30 disabled:cursor-not-allowed"
-                    placeholder="0"
+                    className="w-full text-center text-lg lg:text-2xl font-bold text-primary py-0 lg:py-2 border-2 border-primary/30 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none disabled:opacity-30 disabled:cursor-not-allowed"
+                    placeholder={`0${requiredUnit}`}
                   />
-                  <div className="text-center text-xs text-[#757575] mt-1">{requiredUnit}</div>
                 </div>
 
-                {/* +버튼들 */}
-                <div className="flex flex-wrap gap-1 mb-2 justify-center">
+                {/* +/- 버튼들 (가로 배치: -50 ~ +50) */}
+                <div className="flex flex-wrap gap-0.5 lg:gap-1 justify-between">
+                  {/* - 버튼들: -50, -20, -10, -5, -1 */}
                   {STEPS.map((s) => (
                     <button
-                      key={s}
-                      type="button"
-                      onClick={() => updateAmount(burnerNumber, s)}
-                      disabled={!hasMenu}
-                      className="py-1.5 px-2 rounded text-xs font-medium bg-green-100 hover:bg-green-200 disabled:opacity-30 disabled:cursor-not-allowed"
-                      tabIndex={-1}
-                    >
-                      +{s}
-                    </button>
-                  ))}
-                </div>
-
-                {/* -버튼들 */}
-                <div className="flex flex-wrap gap-1 justify-center">
-                  {STEPS.map((s) => (
-                    <button
-                      key={s}
+                      key={`minus-${s}`}
                       type="button"
                       onClick={() => updateAmount(burnerNumber, -s)}
                       disabled={!hasMenu}
-                      className="py-1.5 px-2 rounded text-xs font-medium bg-red-100 hover:bg-red-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="flex-1 py-4 lg:py-1.5 px-1 lg:px-2 rounded text-[10px] lg:text-xs font-medium bg-red-100 hover:bg-red-200 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
                       tabIndex={-1}
                     >
                       -{s}
+                    </button>
+                  ))}
+                  {/* + 버튼들: +1, +5, +10, +20, +50 */}
+                  {[...STEPS].reverse().map((s) => (
+                    <button
+                      key={`plus-${s}`}
+                      type="button"
+                      onClick={() => updateAmount(burnerNumber, s)}
+                      disabled={!hasMenu}
+                      className="flex-1 py-4 lg:py-1.5 px-1 lg:px-2 rounded text-[10px] lg:text-xs font-medium bg-green-100 hover:bg-green-200 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
+                      tabIndex={-1}
+                    >
+                      +{s}
                     </button>
                   ))}
                 </div>
@@ -160,42 +157,42 @@ export default function AmountInputPopup({
         </div>
 
         {/* 총합 표시 */}
-        <div className="text-center mb-4 p-3 bg-gray-100 rounded-lg">
-          <span className="text-sm text-[#757575]">총 투입량: </span>
-          <span className="font-bold text-[#333] text-lg">
+        <div className="text-center mb-2 lg:mb-4 p-1.5 lg:p-3 bg-gray-100 rounded-lg flex-shrink-0">
+          <span className="text-[10px] lg:text-sm text-[#757575]">총 투입량: </span>
+          <span className="font-bold text-[#333] text-sm lg:text-lg">
             {totalAmount}{requiredUnit}
           </span>
         </div>
 
         {/* 하단 버튼 */}
-        <div className="flex gap-3">
+        <div className="flex gap-2 lg:gap-3 flex-shrink-0">
           <button
             type="button"
             onClick={resetAll}
-            className="flex-1 py-3 rounded-lg bg-[#E0E0E0] hover:bg-[#d0d0d0] font-medium"
+            className="flex-1 py-2 lg:py-3 rounded-lg bg-[#E0E0E0] hover:bg-[#d0d0d0] font-medium text-xs lg:text-base"
             tabIndex={-1}
           >
-            전체 초기화
+            초기화
           </button>
           <button
             type="button"
             onClick={() => onConfirm(amounts)}
             disabled={totalAmount === 0}
-            className="flex-1 py-3 rounded-lg bg-primary text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary-dark"
+            className="flex-1 py-2 lg:py-3 rounded-lg bg-primary text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary-dark text-xs lg:text-base"
           >
             투입 ({totalAmount}{requiredUnit})
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 py-3 rounded-lg border-2 border-[#E0E0E0] hover:bg-gray-50 font-medium"
+            className="flex-1 py-2 lg:py-3 rounded-lg border-2 border-[#E0E0E0] hover:bg-gray-50 font-medium text-xs lg:text-base"
             tabIndex={-1}
           >
             취소
           </button>
         </div>
 
-        <p className="text-xs text-[#757575] mt-3 text-center">
+        <p className="text-[10px] lg:text-xs text-[#757575] mt-2 lg:mt-3 text-center hidden lg:block">
           💡 Tab 키로 화구 이동, 숫자 입력 후 Enter로 투입
         </p>
       </div>

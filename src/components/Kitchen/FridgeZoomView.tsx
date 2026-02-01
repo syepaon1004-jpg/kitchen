@@ -76,20 +76,20 @@ export default function FridgeZoomView({ onSelectIngredient, onSelectMultiple }:
         {/* 나가기 버튼 */}
         <button
           onClick={closeFridgeView}
-          className="absolute top-4 right-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition shadow-lg z-10"
+          className="absolute top-2 lg:top-4 right-2 lg:right-4 px-3 lg:px-4 py-1.5 lg:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition shadow-lg z-10 text-xs lg:text-base"
         >
           🏠 냉장고 나가기
         </button>
 
         {/* 2x2 냉장고 칸들 */}
-        <div className="grid grid-cols-2 gap-8 scale-150">
+        <div className="grid grid-cols-2 gap-4 lg:gap-8 scale-75 lg:scale-150">
           {FRIDGE_POSITIONS.map((pos) => {
             const isSelected = selectedBox === pos.code
 
             return (
               <div
                 key={pos.code}
-                className="relative w-64 h-48"
+                className="relative w-64 h-48 lg:w-64 lg:h-48"
               >
                 {!isSelected ? (
                   <button
@@ -106,31 +106,31 @@ export default function FridgeZoomView({ onSelectIngredient, onSelectMultiple }:
                     }}
                   >
                     <div className="flex flex-col items-center gap-2">
-                      <div className="text-3xl">❄️</div>
-                      <div>{pos.label}</div>
+                      <div className="text-2xl lg:text-3xl">❄️</div>
+                      <div className="text-sm lg:text-base">{pos.label}</div>
                     </div>
                   </button>
                 ) : (
-                  <div className="w-full h-full rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 border-4 border-blue-300 flex flex-col items-center justify-center gap-3 p-4 shadow-2xl">
-                    <div className="text-sm font-bold text-gray-800 mb-1">{pos.label}</div>
+                  <div className="w-full h-full rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 border-4 border-blue-300 flex flex-col items-center justify-center gap-2 lg:gap-3 p-3 lg:p-4 shadow-2xl">
+                    <div className="text-xs lg:text-sm font-bold text-gray-800 mb-1">{pos.label}</div>
                     
                     <button
                       onClick={() => showFloorData(pos.code, 1)}
-                      className="w-full py-3 rounded-lg bg-white border-2 border-blue-400 text-blue-700 font-bold hover:bg-blue-50 transition shadow-md text-sm"
+                      className="w-full py-2 lg:py-3 rounded-lg bg-white border-2 border-blue-400 text-blue-700 font-bold hover:bg-blue-50 transition shadow-md text-xs lg:text-sm"
                     >
                       1️⃣ 1층
                     </button>
                     
                     <button
                       onClick={() => showFloorData(pos.code, 2)}
-                      className="w-full py-3 rounded-lg bg-white border-2 border-blue-400 text-blue-700 font-bold hover:bg-blue-50 transition shadow-md text-sm"
+                      className="w-full py-2 lg:py-3 rounded-lg bg-white border-2 border-blue-400 text-blue-700 font-bold hover:bg-blue-50 transition shadow-md text-xs lg:text-sm"
                     >
                       2️⃣ 2층
                     </button>
 
                     <button
                       onClick={() => setSelectedBox(null)}
-                      className="mt-2 px-4 py-1 rounded bg-gray-300 text-gray-700 text-xs hover:bg-gray-400 transition shadow-md"
+                      className="mt-1 lg:mt-2 px-3 lg:px-4 py-1 rounded bg-gray-300 text-gray-700 text-[10px] lg:text-xs hover:bg-gray-400 transition shadow-md"
                     >
                       닫기
                     </button>

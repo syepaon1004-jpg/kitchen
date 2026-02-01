@@ -107,7 +107,7 @@ export default function DrawerFridge({ onSelectIngredient, onSelectMultiple }: D
       </div>
 
       {/* Mobile - 새로운 모바일 스타일 */}
-      <div className="block lg:hidden w-full">
+      <div className="block lg:hidden w-full mt-4">
         <div className="grid grid-cols-2 gap-2 p-3 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 border-2 border-gray-300 rounded-xl shadow-xl"
              style={{
                backgroundImage: `

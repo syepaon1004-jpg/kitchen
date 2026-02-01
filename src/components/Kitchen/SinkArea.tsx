@@ -61,9 +61,11 @@ export default function SinkArea() {
     </div>
 
       {/* Mobile 버전 - 간소화 (아이콘 + "sink" 텍스트만) */}
-      <div className="flex lg:hidden flex-col items-center justify-center gap-1 p-2 bg-gradient-to-br from-gray-200 to-gray-300 rounded-lg border border-gray-400 shadow-md">
-        <div className="text-5xl filter drop-shadow-lg">💧</div>
-        <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">sink</div>
+      <div className="flex lg:hidden flex-col items-center justify-center">
+        <div className="flex flex-col items-center justify-center p-1 bg-gradient-to-br from-gray-200 to-gray-300 rounded-lg border border-gray-400 shadow-md w-[30px] h-[30px]">
+          <div className="text-base filter drop-shadow-lg">💧</div>
+        </div>
+        <div className="text-[8px] font-bold text-gray-600 uppercase tracking-wider mt-0.5">sink</div>
       </div>
     </>
   )
