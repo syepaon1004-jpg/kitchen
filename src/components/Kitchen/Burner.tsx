@@ -71,11 +71,16 @@ export default function Burner({ burnerNumber }: BurnerProps) {
         stopStirFry(burnerNumber)
       }, 1000)
 
+      // 레시피 완료 체크
+      const recipe = useGameStore.getState().getRecipeByMenuName(wok.currentMenu!)
+      const totalSteps = recipe?.steps?.length ?? 0
+      const isComplete = wok.currentStep + 1 >= totalSteps
+
       if (result.burned) {
         playSound('error')
-      } else if (result.completed) {
+      } else if (result.ok && isComplete) {
         playSound('complete')
-      } else if (result.success) {
+      } else if (result.ok) {
         playSound('success')
       }
     } else {
@@ -87,11 +92,17 @@ export default function Burner({ burnerNumber }: BurnerProps) {
       }
 
       const result = validateAndAdvanceAction(burnerNumber, actionType)
+
+      // 레시피 완료 체크
+      const recipe = useGameStore.getState().getRecipeByMenuName(wok.currentMenu!)
+      const totalSteps = recipe?.steps?.length ?? 0
+      const isComplete = wok.currentStep + 1 >= totalSteps
+
       if (result.burned) {
         playSound('error')
-      } else if (result.completed) {
+      } else if (result.ok && isComplete) {
         playSound('complete')
-      } else if (result.success) {
+      } else if (result.ok) {
         playSound('success')
       }
     }
