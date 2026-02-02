@@ -177,8 +177,9 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           transition={{ duration: 0.8, ease: 'easeInOut' }}
           className="absolute top-0 z-10 flex flex-col items-center cursor-pointer"
           onClick={(e) => {
-            // DIRTY, BURNED 상태가 아니고 메뉴가 있으면 클릭 가능 (OVERHEATING 상태 포함)
-            if (wok.currentMenu && wok.state !== 'DIRTY' && wok.state !== 'BURNED') {
+            // CLEAN, WET, OVERHEATING 상태에서 메뉴가 있으면 클릭 가능
+            const clickableStates: WokState[] = ['CLEAN', 'WET', 'OVERHEATING']
+            if (wok.currentMenu && clickableStates.includes(wok.state)) {
               // 데스크톱에서만 radial menu 표시 + 이벤트 전파 중단
               if (window.innerWidth >= 1024) {
                 e.stopPropagation()
@@ -272,8 +273,9 @@ export default function Burner({ burnerNumber }: BurnerProps) {
             <span
               className="text-white text-sm lg:text-[10px] font-bold text-center px-2 drop-shadow-lg z-10 cursor-pointer"
               onClick={(e) => {
-                // DIRTY, BURNED 상태가 아니고 메뉴가 있으면 클릭 가능 (OVERHEATING 상태 포함)
-                if (wok.currentMenu && wok.state !== 'DIRTY' && wok.state !== 'BURNED') {
+                // CLEAN, WET, OVERHEATING 상태에서 메뉴가 있으면 클릭 가능
+                const clickableStates: WokState[] = ['CLEAN', 'WET', 'OVERHEATING']
+                if (wok.currentMenu && clickableStates.includes(wok.state)) {
                   // 데스크톱에서만 radial menu 표시 + 이벤트 전파 중단
                   if (window.innerWidth >= 1024) {
                     e.stopPropagation()
@@ -473,8 +475,9 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           boxShadow: 'inset 0 3px 10px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.2)'
         }}
         onClick={(e) => {
-          // DIRTY, BURNED 상태가 아니고 메뉴가 있으면 클릭 가능 (OVERHEATING 상태 포함)
-          if (wok.currentMenu && wok.state !== 'DIRTY' && wok.state !== 'BURNED') {
+          // CLEAN, WET, OVERHEATING 상태에서 메뉴가 있으면 클릭 가능
+          const clickableStates: WokState[] = ['CLEAN', 'WET', 'OVERHEATING']
+          if (wok.currentMenu && clickableStates.includes(wok.state)) {
             // 데스크톱에서만 radial menu 표시 + 이벤트 전파 중단
             if (window.innerWidth >= 1024) {
               e.stopPropagation()
