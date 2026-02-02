@@ -1,5 +1,6 @@
 import { useGameStore } from '../../stores/gameStore'
 import type { Seasoning } from '../../types/database.types'
+import { useSound } from '../../hooks/useSound'
 
 interface SeasoningCounterProps {
   onSelectSeasoning: (seasoning: Seasoning, requiredAmount: number, requiredUnit: string) => void
@@ -7,6 +8,7 @@ interface SeasoningCounterProps {
 
 export default function SeasoningCounter({ onSelectSeasoning }: SeasoningCounterProps) {
   const { seasonings, woks, getCurrentStepIngredients } = useGameStore()
+  const { playSound } = useSound()
 
   const getRequiredForCurrentWoks = () => {
     const req: Record<string, { amount: number; unit: string }> = {}
@@ -50,7 +52,10 @@ export default function SeasoningCounter({ onSelectSeasoning }: SeasoningCounter
             <button
               key={s.id}
               type="button"
-              onClick={() => onSelectSeasoning(s, requiredFor[s.seasoning_name]?.amount ?? 10, requiredFor[s.seasoning_name]?.unit ?? s.base_unit)}
+              onClick={() => {
+                playSound('select')
+                onSelectSeasoning(s, requiredFor[s.seasoning_name]?.amount ?? 10, requiredFor[s.seasoning_name]?.unit ?? s.base_unit)
+              }}
               className="w-full min-h-[70px] py-2 px-1.5 rounded-lg bg-white hover:bg-orange-50 border-2 border-orange-200 hover:border-orange-300 shadow-md hover:shadow-lg text-orange-900 text-xs font-bold transition-all flex flex-col items-center justify-center"
               style={{
                 boxShadow: 'inset 0 1px 2px rgba(255,255,255,1), 0 2px 6px rgba(0,0,0,0.1)'

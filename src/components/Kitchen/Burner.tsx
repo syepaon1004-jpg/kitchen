@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '../../stores/gameStore'
 import type { WokState } from '../../types/database.types'
 import { WOK_TEMP } from '../../types/database.types'
+import { useSound } from '../../hooks/useSound'
 
 interface BurnerProps {
   burnerNumber: number
@@ -21,7 +22,8 @@ export default function Burner({ burnerNumber }: BurnerProps) {
   const wok = woks.find((w) => w.burnerNumber === burnerNumber)
   const [showRadialMenu, setShowRadialMenu] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
-  
+  const { playSound } = useSound()
+
   if (!wok) return null
 
   // 외부 클릭 감지
@@ -52,31 +54,48 @@ export default function Burner({ burnerNumber }: BurnerProps) {
   const handleAction = (actionType: string) => {
     // 볶기 액션인 경우 온도 체크
     if (actionType === 'STIR_FRY') {
+      playSound('stir')
       const success = startStirFry(burnerNumber)
       if (!success) {
+        playSound('error')
         alert(`웍 온도가 너무 낮습니다! (현재: ${Math.round(wok.temperature)}°C, 필요: ${WOK_TEMP.MIN_STIR_FRY}°C 이상)`)
         setShowRadialMenu(false)
         return
       }
-      
+
       // 볶기 액션 검증
       const result = validateAndAdvanceAction(burnerNumber, actionType)
-      
+
       // 볶기 애니메이션 1초 후 종료
       setTimeout(() => {
         stopStirFry(burnerNumber)
       }, 1000)
-      
+
       if (result.burned) {
-        // 타버림 처리는 validateAndAdvanceAction에서 함
+        playSound('error')
+      } else if (result.completed) {
+        playSound('complete')
+      } else if (result.success) {
+        playSound('success')
       }
     } else {
+      // 다른 액션들 효과음
+      if (actionType === 'ADD_WATER') {
+        playSound('add')
+      } else if (actionType === 'FLIP') {
+        playSound('stir')
+      }
+
       const result = validateAndAdvanceAction(burnerNumber, actionType)
       if (result.burned) {
-        // 타버림 처리는 validateAndAdvanceAction에서 함
+        playSound('error')
+      } else if (result.completed) {
+        playSound('complete')
+      } else if (result.success) {
+        playSound('success')
       }
     }
-    
+
     // 액션 후 메뉴 자동 닫기
     setShowRadialMenu(false)
   }
@@ -158,7 +177,8 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           transition={{ duration: 0.8, ease: 'easeInOut' }}
           className="absolute top-0 z-10 flex flex-col items-center cursor-pointer"
           onClick={(e) => {
-            if (wok.state === 'CLEAN' && wok.currentMenu) {
+            // DIRTY, BURNED 상태가 아니고 메뉴가 있으면 클릭 가능 (OVERHEATING 상태 포함)
+            if (wok.currentMenu && wok.state !== 'DIRTY' && wok.state !== 'BURNED') {
               // 데스크톱에서만 radial menu 표시 + 이벤트 전파 중단
               if (window.innerWidth >= 1024) {
                 e.stopPropagation()
@@ -249,10 +269,11 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           </AnimatePresence>
 
           {wok.currentMenu && !wok.hasWater && (
-            <span 
+            <span
               className="text-white text-sm lg:text-[10px] font-bold text-center px-2 drop-shadow-lg z-10 cursor-pointer"
               onClick={(e) => {
-                if (wok.state === 'CLEAN' && wok.currentMenu) {
+                // DIRTY, BURNED 상태가 아니고 메뉴가 있으면 클릭 가능 (OVERHEATING 상태 포함)
+                if (wok.currentMenu && wok.state !== 'DIRTY' && wok.state !== 'BURNED') {
                   // 데스크톱에서만 radial menu 표시 + 이벤트 전파 중단
                   if (window.innerWidth >= 1024) {
                     e.stopPropagation()
@@ -452,7 +473,8 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           boxShadow: 'inset 0 3px 10px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.2)'
         }}
         onClick={(e) => {
-          if (wok.state === 'CLEAN' && wok.currentMenu) {
+          // DIRTY, BURNED 상태가 아니고 메뉴가 있으면 클릭 가능 (OVERHEATING 상태 포함)
+          if (wok.currentMenu && wok.state !== 'DIRTY' && wok.state !== 'BURNED') {
             // 데스크톱에서만 radial menu 표시 + 이벤트 전파 중단
             if (window.innerWidth >= 1024) {
               e.stopPropagation()
@@ -479,11 +501,16 @@ export default function Burner({ burnerNumber }: BurnerProps) {
         <div className="text-center">
           <button
             type="button"
-            onClick={() => washWok(burnerNumber)}
+            onClick={() => {
+              if (!wok.isOn) {
+                playSound('wash')
+              }
+              washWok(burnerNumber)
+            }}
             disabled={wok.isOn}
             className={`px-3 py-1.5 rounded-lg text-white text-sm lg:text-xs font-bold shadow-md transition-all ${
-              wok.isOn 
-                ? 'bg-gray-400 cursor-not-allowed opacity-50' 
+              wok.isOn
+                ? 'bg-gray-400 cursor-not-allowed opacity-50'
                 : wok.state === 'BURNED'
                   ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700'
                   : 'bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700'
@@ -495,7 +522,10 @@ export default function Burner({ burnerNumber }: BurnerProps) {
       ) : wok.state === 'WET' ? (
         <button
           type="button"
-          onClick={() => toggleBurner(burnerNumber)}
+          onClick={() => {
+            playSound(wok.isOn ? 'fire_off' : 'fire_on')
+            toggleBurner(burnerNumber)
+          }}
           className={`px-3 py-1.5 rounded-lg text-white text-sm lg:text-xs font-bold shadow-md transition-all ${
             wok.isOn
               ? 'bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 animate-pulse'
@@ -509,10 +539,13 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           {/* 불 켜기/끄기 */}
           <button
             type="button"
-            onClick={() => toggleBurner(burnerNumber)}
+            onClick={() => {
+              playSound(wok.isOn ? 'fire_off' : 'fire_on')
+              toggleBurner(burnerNumber)
+            }}
             className={`px-4 py-1.5 rounded-lg text-sm lg:text-xs font-bold shadow-md transition-all ${
-              wok.isOn 
-                ? 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white' 
+              wok.isOn
+                ? 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white'
                 : 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white'
             }`}
           >
@@ -537,6 +570,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
                   type="button"
                   onClick={() => {
                     if (confirm(`${wok.currentMenu}을(를) 버리시겠습니까?`)) {
+                      playSound('remove')
                       emptyWok(burnerNumber)
                     }
                   }}
@@ -545,10 +579,16 @@ export default function Burner({ burnerNumber }: BurnerProps) {
                 >
                   🗑️
                 </button>
-                
+
                 <button
                   type="button"
                   onClick={() => {
+                    const recipe = useGameStore.getState().getRecipeByMenuName(wok.currentMenu!)
+                    const totalSteps = recipe?.steps?.length ?? 0
+                    const isComplete = wok.currentStep >= totalSteps
+                    if (isComplete) {
+                      playSound('serve')
+                    }
                     serve(burnerNumber)
                   }}
                   className={`px-2 py-1 rounded text-sm lg:text-xs font-bold transition-all shadow-sm ${

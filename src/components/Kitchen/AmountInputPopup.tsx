@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useGameStore } from '../../stores/gameStore'
+import { useSound } from '../../hooks/useSound'
 
 interface AmountInputPopupProps {
   title: string
@@ -19,7 +20,8 @@ export default function AmountInputPopup({
   onCancel,
 }: AmountInputPopupProps) {
   const woks = useGameStore((s) => s.woks)
-  
+  const { playSound } = useSound()
+
   const [amounts, setAmounts] = useState<Record<number, number>>({
     1: 0,
     2: 0,
@@ -30,14 +32,15 @@ export default function AmountInputPopup({
   const input2Ref = useRef<HTMLInputElement>(null)
   const input3Ref = useRef<HTMLInputElement>(null)
 
-  // 첫 번째 메뉴 있는 웍 input에 자동 포커스
+  // 첫 번째 메뉴 있는 웍 input에 자동 포커스 (팝업이 처음 열릴 때만)
   useEffect(() => {
     const firstWokWithMenu = woks.find((w) => w.currentMenu)
     if (firstWokWithMenu?.burnerNumber === 1) input1Ref.current?.focus()
     else if (firstWokWithMenu?.burnerNumber === 2) input2Ref.current?.focus()
     else if (firstWokWithMenu?.burnerNumber === 3) input3Ref.current?.focus()
     else input1Ref.current?.focus()
-  }, [woks])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ESC 키로 닫기
   useEffect(() => {
@@ -51,6 +54,7 @@ export default function AmountInputPopup({
   }, [onCancel])
 
   const updateAmount = (burnerNumber: number, delta: number) => {
+    playSound(delta > 0 ? 'add' : 'remove')
     setAmounts((prev) => ({
       ...prev,
       [burnerNumber]: Math.max(0, (prev[burnerNumber] ?? 0) + delta),
@@ -66,6 +70,7 @@ export default function AmountInputPopup({
   }
 
   const resetAll = () => {
+    playSound('remove')
     setAmounts({ 1: 0, 2: 0, 3: 0 })
   }
 
@@ -73,10 +78,37 @@ export default function AmountInputPopup({
 
   const refs = { 1: input1Ref, 2: input2Ref, 3: input3Ref }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && totalAmount > 0) {
-      e.preventDefault()
-      onConfirm(amounts)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+
+    // data-burner-number로 현재 burner 번호 확인
+    const burnerNumber = parseInt(e.currentTarget.dataset.burnerNumber || '0', 10)
+    const isMobile = window.innerWidth < 1024
+
+    if (isMobile) {
+      // 모바일: 다음 활성화된 input으로 포커스 이동, 마지막이면 투입
+      const woksWithMenu = woks.filter((w) => w.currentMenu).map((w) => w.burnerNumber)
+      const currentIndex = woksWithMenu.indexOf(burnerNumber)
+      const nextIndex = currentIndex + 1
+
+      if (nextIndex < woksWithMenu.length) {
+        // 다음 input으로 이동
+        const nextBurner = woksWithMenu[nextIndex]
+        refs[nextBurner as 1 | 2 | 3]?.current?.focus()
+      } else {
+        // 마지막 input: 투입 실행 (총합이 0보다 클 때만)
+        if (totalAmount > 0) {
+          playSound('confirm')
+          onConfirm(amounts)
+        }
+      }
+    } else {
+      // 데스크탑: 기존 동작 유지 (Enter 누르면 바로 투입)
+      if (totalAmount > 0) {
+        playSound('confirm')
+        onConfirm(amounts)
+      }
     }
   }
 
@@ -117,6 +149,7 @@ export default function AmountInputPopup({
                     onChange={(e) => setDirectAmount(burnerNumber, e.target.value)}
                     onKeyDown={handleKeyDown}
                     disabled={!hasMenu}
+                    data-burner-number={burnerNumber}
                     className="w-full text-center text-lg lg:text-2xl font-bold text-primary py-0 lg:py-2 border-2 border-primary/30 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none disabled:opacity-30 disabled:cursor-not-allowed"
                     placeholder={`0${requiredUnit}`}
                   />
@@ -176,7 +209,10 @@ export default function AmountInputPopup({
           </button>
           <button
             type="button"
-            onClick={() => onConfirm(amounts)}
+            onClick={() => {
+              playSound('confirm')
+              onConfirm(amounts)
+            }}
             disabled={totalAmount === 0}
             className="flex-1 py-2 lg:py-3 rounded-lg bg-primary text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary-dark text-xs lg:text-base"
           >
@@ -184,7 +220,10 @@ export default function AmountInputPopup({
           </button>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={() => {
+              playSound('cancel')
+              onCancel()
+            }}
             className="flex-1 py-2 lg:py-3 rounded-lg border-2 border-[#E0E0E0] hover:bg-gray-50 font-medium text-xs lg:text-base"
             tabIndex={-1}
           >

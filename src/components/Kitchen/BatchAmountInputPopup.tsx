@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useGameStore } from '../../stores/gameStore'
+import { useSound } from '../../hooks/useSound'
 
 interface SelectedIngredient {
   id: string
@@ -24,6 +25,7 @@ export default function BatchAmountInputPopup({
 }: BatchAmountInputPopupProps) {
   const woks = useGameStore((s) => s.woks)
   const woksWithMenu = woks.filter((w) => w.currentMenu)
+  const { playSound } = useSound()
 
   // 각 식재료별 웍별 입력값: { ingredientId: { burnerNumber: amount } }
   const [amounts, setAmounts] = useState<Record<string, Record<number, number>>>(() => {
@@ -37,13 +39,22 @@ export default function BatchAmountInputPopup({
     return initial
   })
 
-  // input refs (첫 번째 식재료의 첫 번째 웍)
-  const firstInputRef = useRef<HTMLInputElement>(null)
+  // input refs (모든 input 관리)
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   // 첫 input에 자동 포커스
   useEffect(() => {
-    firstInputRef.current?.focus()
+    const firstKey = getInputKey(ingredients[0]?.id, woksWithMenu[0]?.burnerNumber)
+    if (firstKey && inputRefs.current[firstKey]) {
+      inputRefs.current[firstKey]?.focus()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const getInputKey = (ingredientId: string | undefined, burnerNumber: number | undefined) => {
+    if (!ingredientId || !burnerNumber) return null
+    return `${ingredientId}-${burnerNumber}`
+  }
 
   // ESC 키로 닫기, Enter 키로 제출
   useEffect(() => {
@@ -68,6 +79,7 @@ export default function BatchAmountInputPopup({
   }
 
   const handleQuickFill = (ingredientId: string, burnerNumber: number, standardAmount: number) => {
+    playSound('add')
     setAmounts((prev) => ({
       ...prev,
       [ingredientId]: {
@@ -102,9 +114,38 @@ export default function BatchAmountInputPopup({
     onConfirm(assignments)
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
+  const handleKeyDown = (ingredientId: string, burnerNumber: number) => (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+
+    const isMobile = window.innerWidth < 1024
+
+    if (isMobile) {
+      // 모바일: 다음 input으로 이동, 마지막이면 투입
+      const allInputKeys: string[] = []
+      ingredients.forEach((ing) => {
+        woksWithMenu.forEach((wok) => {
+          const key = getInputKey(ing.id, wok.burnerNumber)
+          if (key) allInputKeys.push(key)
+        })
+      })
+
+      const currentKey = getInputKey(ingredientId, burnerNumber)
+      const currentIndex = currentKey ? allInputKeys.indexOf(currentKey) : -1
+      const nextIndex = currentIndex + 1
+
+      if (nextIndex < allInputKeys.length) {
+        // 다음 input으로 이동
+        const nextKey = allInputKeys[nextIndex]
+        inputRefs.current[nextKey]?.focus()
+      } else {
+        // 마지막 input: 투입 실행
+        playSound('confirm')
+        handleConfirm()
+      }
+    } else {
+      // 데스크탑: 기존 동작 유지 (Enter 누르면 바로 투입)
+      playSound('confirm')
       handleConfirm()
     }
   }
@@ -132,7 +173,10 @@ export default function BatchAmountInputPopup({
           </div>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={() => {
+              playSound('cancel')
+              onCancel()
+            }}
             className="px-3 py-1 rounded bg-white/20 hover:bg-white/30 text-white font-medium text-sm"
           >
             ✕
@@ -157,10 +201,10 @@ export default function BatchAmountInputPopup({
                   </div>
                 </div>
 
-                {/* 화구별 입력 */}
-                <div className="grid grid-cols-3 gap-3">
-                  {woksWithMenu.map((wok, wokIndex) => {
-                    const isFirstInput = ingredients.indexOf(ing) === 0 && wokIndex === 0
+                {/* 화구별 입력 (모바일: 세로 / 데스크탑: 가로) */}
+                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-3">
+                  {woksWithMenu.map((wok) => {
+                    const inputKey = getInputKey(ing.id, wok.burnerNumber)
                     return (
                       <div key={wok.burnerNumber} className="flex flex-col gap-1">
                         <label className="text-xs font-bold text-gray-600">
@@ -168,12 +212,14 @@ export default function BatchAmountInputPopup({
                         </label>
                         <div className="flex items-center gap-1">
                           <input
-                            ref={isFirstInput ? firstInputRef : undefined}
+                            ref={(el) => {
+                              if (inputKey) inputRefs.current[inputKey] = el
+                            }}
                             type="number"
                             min="0"
                             value={amounts[ing.id]?.[wok.burnerNumber] || 0}
                             onChange={(e) => handleAmountChange(ing.id, wok.burnerNumber, e.target.value)}
-                            onKeyDown={handleKeyDown}
+                            onKeyDown={handleKeyDown(ing.id, wok.burnerNumber)}
                             className="flex-1 px-2 py-2 border-2 border-gray-300 rounded text-center font-bold text-gray-800 focus:border-blue-500 focus:outline-none"
                           />
                           <span className="text-xs text-gray-600 font-medium">{ing.standardUnit}</span>
@@ -208,14 +254,20 @@ export default function BatchAmountInputPopup({
         <div className="p-4 border-t bg-white flex justify-end gap-3">
           <button
             type="button"
-            onClick={onCancel}
+            onClick={() => {
+              playSound('cancel')
+              onCancel()
+            }}
             className="px-6 py-2 rounded bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold text-sm"
           >
             취소
           </button>
           <button
             type="button"
-            onClick={handleConfirm}
+            onClick={() => {
+              playSound('confirm')
+              handleConfirm()
+            }}
             className="px-6 py-2 rounded bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold text-sm shadow-lg"
           >
             ✓ 모두 투입하기
