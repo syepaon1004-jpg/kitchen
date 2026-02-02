@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../stores/gameStore'
 import { selectRandomMenu } from '../stores/gameStore'
 import { MENU_INTERVAL_MS, MENUS_PER_INTERVAL, buildSeasoningSKU } from '../types/database.types'
-import type { IngredientInventory, Seasoning } from '../types/database.types'
+import type { IngredientInventory, Seasoning, WokState } from '../types/database.types'
 import GameHeader from '../components/Game/GameHeader'
 import ActionLogPanel from '../components/Game/ActionLogPanel'
 import RecipeGuide from '../components/Game/RecipeGuide'
@@ -660,7 +660,8 @@ export default function GamePlay() {
               }}
               onClick={() => {
                 const wok = woks.find(w => w.burnerNumber === 1)
-                if (wok?.currentMenu && wok.state === 'CLEAN') {
+                const clickableStates: WokState[] = ['CLEAN', 'WET', 'OVERHEATING']
+                if (wok?.currentMenu && clickableStates.includes(wok.state)) {
                   setSelectedWokForActions(selectedWokForActions === 1 ? null : 1)
                 }
               }}
@@ -679,7 +680,8 @@ export default function GamePlay() {
               }}
               onClick={() => {
                 const wok = woks.find(w => w.burnerNumber === 2)
-                if (wok?.currentMenu && wok.state === 'CLEAN') {
+                const clickableStates: WokState[] = ['CLEAN', 'WET', 'OVERHEATING']
+                if (wok?.currentMenu && clickableStates.includes(wok.state)) {
                   setSelectedWokForActions(selectedWokForActions === 2 ? null : 2)
                 }
               }}
@@ -698,7 +700,8 @@ export default function GamePlay() {
               }}
               onClick={() => {
                 const wok = woks.find(w => w.burnerNumber === 3)
-                if (wok?.currentMenu && wok.state === 'CLEAN') {
+                const clickableStates: WokState[] = ['CLEAN', 'WET', 'OVERHEATING']
+                if (wok?.currentMenu && clickableStates.includes(wok.state)) {
                   setSelectedWokForActions(selectedWokForActions === 3 ? null : 3)
                 }
               }}
@@ -768,7 +771,8 @@ export default function GamePlay() {
             {/* 웍 선택 시: 액션 버튼 (2행) */}
             {selectedWokForActions && (() => {
               const selectedWok = woks.find(w => w.burnerNumber === selectedWokForActions)
-              return selectedWok?.currentMenu && selectedWok.state === 'CLEAN' ? (
+              const clickableStates: WokState[] = ['CLEAN', 'WET', 'OVERHEATING']
+              return selectedWok?.currentMenu && clickableStates.includes(selectedWok.state) ? (
                 <div className="flex flex-col gap-2">
                   {/* 1행: 액션 버튼 (볶기, 물넣기, 뒤집기) */}
                   <div className="grid grid-cols-3 gap-2">
