@@ -33,6 +33,7 @@ export default function GameResult() {
     elapsedSeconds,
     actionLogs,
     burnerUsageHistory,
+    woks,
   } = useGameStore()
 
   const [scores, setScores] = useState<{
@@ -56,7 +57,8 @@ export default function GameResult() {
         ? Math.round(Math.min(100, Math.max(0, (targetTime / elapsedSeconds) * 100)))
         : 0
 
-    const totalPossible = burnerUsageHistory.length * 3
+    const totalBurners = woks.length || 3 // 동적 화구 개수 (폴백: 3)
+    const totalPossible = burnerUsageHistory.length * totalBurners
     const actualBurnerSeconds = burnerUsageHistory.reduce(
       (sum, log) => sum + log.activeBurners.length,
       0
@@ -74,7 +76,7 @@ export default function GameResult() {
       burnerUsageScore,
       totalScore,
     })
-  }, [actionLogs, burnerUsageHistory, completedMenus, elapsedSeconds])
+  }, [actionLogs, burnerUsageHistory, completedMenus, elapsedSeconds, woks.length])
 
   useEffect(() => {
     if (!currentUser?.id) return

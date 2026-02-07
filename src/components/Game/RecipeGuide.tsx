@@ -1,5 +1,5 @@
 import { useGameStore } from '../../stores/gameStore'
-import { isSeasoningSKU } from '../../types/database.types'
+import type { RecipeIngredient } from '../../types/database.types'
 
 const ACTION_LABELS: Record<string, string> = {
   STIR_FRY: '볶기',
@@ -11,22 +11,12 @@ const ACTION_LABELS: Record<string, string> = {
 export default function RecipeGuide() {
   const woks = useGameStore((s) => s.woks)
   const getRecipeByMenuName = useGameStore((s) => s.getRecipeByMenuName)
-  const ingredients = useGameStore((s) => s.ingredients)
 
-  // SKU에서 식자재 이름 추출
-  const getIngredientName = (sku: string): string => {
-    if (isSeasoningSKU(sku)) {
-      // "SEASONING:참치액젓:10ML" → "참치액젓"
-      return sku.split(':')[1] ?? sku
-    }
-    // ingredients_inventory에서 찾기
-    const found = ingredients.find((ing) => ing.sku_full === sku)
-    if (found?.ingredient_master?.ingredient_name) {
-      return found.ingredient_master.ingredient_name
-    }
-    // 못 찾으면 SKU에서 파싱 시도
-    const parts = sku.split('_')
-    return parts[parts.length - 2] ?? sku
+  // v3: RecipeIngredient에서 표시 이름 추출
+  const getIngredientDisplayName = (ing: RecipeIngredient): string => {
+    return ing.display_name
+      ?? ing.ingredient_master?.ingredient_name
+      ?? ing.id.slice(0, 8)
   }
 
   return (
@@ -35,7 +25,12 @@ export default function RecipeGuide() {
       <div className="flex flex-col lg:grid lg:grid-cols-3 gap-2 lg:gap-4">
         {woks.map((wok) => {
           const recipe = wok.currentMenu ? getRecipeByMenuName(wok.currentMenu) : null
-          const sortedSteps = recipe?.steps ? [...recipe.steps].sort((a, b) => a.step_number - b.step_number) : []
+          // v3: recipe_bundles에서 스텝 가져오기
+          const targetBundles = wok.currentBundleId
+            ? (recipe?.recipe_bundles ?? []).filter((b) => b.id === wok.currentBundleId)
+            : recipe?.recipe_bundles ?? []
+          const allSteps = targetBundles.flatMap((b) => b.recipe_steps ?? [])
+          const sortedSteps = [...allSteps].sort((a, b) => a.step_number - b.step_number)
           const currentStep = sortedSteps[wok.currentStep]
           const nextStep = sortedSteps[wok.currentStep + 1]
 
@@ -80,9 +75,10 @@ export default function RecipeGuide() {
                       </div>
                       {currentStep.step_type === 'INGREDIENT' ? (
                         <div className="text-[10px] lg:text-xs text-[#333] space-y-0.5">
-                          {currentStep.ingredients?.map((ing, i) => (
+                          {/* v3: recipe_ingredients 사용 */}
+                          {currentStep.recipe_ingredients?.map((ing, i) => (
                             <div key={i} className="font-medium truncate">
-                              • {getIngredientName(ing.required_sku)} {ing.required_amount}
+                              • {getIngredientDisplayName(ing)} {ing.required_amount}
                               {ing.required_unit}
                             </div>
                           )) ?? <div className="text-gray-500">재료 정보 없음</div>}
@@ -106,7 +102,7 @@ export default function RecipeGuide() {
                     <div className="text-[10px] lg:text-xs text-gray-600 mt-0.5 lg:mt-1 truncate">
                       다음:{' '}
                       {nextStep.step_type === 'INGREDIENT'
-                        ? `재료 ${nextStep.ingredients?.length ?? 0}개`
+                        ? `재료 ${nextStep.recipe_ingredients?.length ?? 0}개`
                         : ACTION_LABELS[nextStep.action_type ?? ''] ?? nextStep.action_type}
                     </div>
                   )}

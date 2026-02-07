@@ -8,6 +8,8 @@ import UserLogin from './pages/UserLogin'
 import LevelSelect from './pages/LevelSelect'
 import GamePlay from './pages/GamePlay'
 import GameResult from './pages/GameResult'
+import TestKitchen from './pages/TestKitchen'
+import KitchenEditor from './pages/KitchenEditor'
 
 function App() {
   useEffect(() => {
@@ -32,6 +34,8 @@ function App() {
           <Route path="/level-select" element={<LevelSelect />} />
           <Route path="/game" element={<GamePlay />} />
           <Route path="/result" element={<GameResult />} />
+          <Route path="/test-kitchen" element={<TestKitchen />} />
+          <Route path="/admin/kitchen-editor" element={<KitchenEditor />} />
           <Route path="/user" element={<Navigate to="/user-login" replace />} />
           <Route path="/level" element={<Navigate to="/level-select" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />

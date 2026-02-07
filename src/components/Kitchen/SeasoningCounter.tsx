@@ -10,14 +10,17 @@ export default function SeasoningCounter({ onSelectSeasoning }: SeasoningCounter
   const { seasonings, woks, getCurrentStepIngredients } = useGameStore()
   const { playSound } = useSound()
 
+  // v3: location_type='SEASONING'인 재료 매칭
   const getRequiredForCurrentWoks = () => {
     const req: Record<string, { amount: number; unit: string }> = {}
     woks.forEach((w) => {
       if (!w.currentMenu) return
-      const ingredients = getCurrentStepIngredients(w.currentMenu, w.currentStep)
+      const ingredients = getCurrentStepIngredients(w.currentMenu, w.currentStep, w.currentBundleId)
       ingredients.forEach((i) => {
-        if (i.required_sku.startsWith('SEASONING:')) {
-          const name = i.required_sku.split(':')[1]
+        // v3: 조미료인지 확인 (storage_location.location_type='SEASONING')
+        const locationType = i.inventory?.storage_location?.location_type
+        if (locationType === 'SEASONING') {
+          const name = i.display_name ?? i.ingredient_master?.ingredient_name ?? 'unknown'
           req[name] = { amount: i.required_amount, unit: i.required_unit }
         }
       })

@@ -5,87 +5,89 @@ import type {
   User,
   KitchenLayout,
   Recipe,
+  RecipeStep,
+  RecipeIngredient,
   IngredientInventory,
-  Seasoning,
   GameSession,
   Wok,
   MenuOrder,
   ActionLog,
   BurnerUsageLog,
   GameLevel,
+  KitchenGrid,
+  KitchenEquipment,
+  // 데코존/묶음/콜드메뉴 시스템
+  PlateType,
+  RecipeBundle,
+  DecoIngredient,
+  DecoStep,
+  IngredientSpecialAction,
+  IngredientMode,
+  DecoPlate,
+  DecoSettingItem,
+  BundleProgress,
+  SelectedDecoIngredient,
+  Seasoning,
 } from '../types/database.types'
 import { WOK_TEMP, MENU_TIMER, calculateTimeScore } from '../types/database.types'
 
+// 기본 웍 생성 함수
+function createWok(equipmentKey: string, burnerNumber: number): Wok {
+  return {
+    equipmentKey,
+    burnerNumber,
+    isOn: false,
+    state: 'CLEAN',
+    position: 'AT_BURNER',
+    currentMenu: null,
+    currentOrderId: null,
+    currentBundleId: null, // MIXED 메뉴의 묶음 ID
+    currentStep: 0,
+    stepStartTime: null,
+    burnerOnSince: null,
+    addedIngredientIds: [],
+    temperature: WOK_TEMP.AMBIENT,
+    isStirFrying: false,
+    stirFryStartTime: null,
+    heatLevel: 3, // 기본 강불
+    stirFryCount: 0,
+    hasWater: false,
+    waterTemperature: WOK_TEMP.AMBIENT,
+    waterBoilStartTime: null,
+    isBoiling: false,
+    recipeErrors: 0,
+    totalSteps: 0,
+  }
+}
+
+// kitchenEquipment에서 BURNER 타입 장비로 woks 생성
+function createWoksFromEquipment(equipment: KitchenEquipment[]): Wok[] {
+  const burners = equipment
+    .filter((e) => e.equipment_type === 'BURNER')
+    .sort((a, b) => a.display_order - b.display_order)
+
+  if (burners.length === 0) {
+    // 폴백: 기본 3개 화구
+    return [
+      createWok('burner_1', 1),
+      createWok('burner_2', 2),
+      createWok('burner_3', 3),
+    ]
+  }
+
+  return burners.map((burner) => {
+    // equipment_key에서 burnerNumber 추출 (예: 'burner_1' → 1)
+    const keyParts = burner.equipment_key.split('_')
+    const burnerNumber = parseInt(keyParts[keyParts.length - 1], 10) || 1
+    return createWok(burner.equipment_key, burnerNumber)
+  })
+}
+
+// 기본 초기 웍 (kitchenEquipment 없을 때 사용)
 const INITIAL_WOKS: Wok[] = [
-  { 
-    burnerNumber: 1, 
-    isOn: false, 
-    state: 'CLEAN', 
-    position: 'AT_BURNER', 
-    currentMenu: null, 
-    currentOrderId: null, 
-    currentStep: 0, 
-    stepStartTime: null, 
-    burnerOnSince: null, 
-    addedIngredients: [],
-    temperature: WOK_TEMP.AMBIENT,
-    isStirFrying: false,
-    stirFryStartTime: null,
-    heatLevel: 3, // 기본 강불
-    stirFryCount: 0,
-    hasWater: false,
-    waterTemperature: WOK_TEMP.AMBIENT,
-    waterBoilStartTime: null,
-    isBoiling: false,
-    recipeErrors: 0,
-    totalSteps: 0,
-  },
-  { 
-    burnerNumber: 2, 
-    isOn: false, 
-    state: 'CLEAN', 
-    position: 'AT_BURNER', 
-    currentMenu: null, 
-    currentOrderId: null, 
-    currentStep: 0, 
-    stepStartTime: null, 
-    burnerOnSince: null, 
-    addedIngredients: [],
-    temperature: WOK_TEMP.AMBIENT,
-    isStirFrying: false,
-    stirFryStartTime: null,
-    heatLevel: 3, // 기본 강불
-    stirFryCount: 0,
-    hasWater: false,
-    waterTemperature: WOK_TEMP.AMBIENT,
-    waterBoilStartTime: null,
-    isBoiling: false,
-    recipeErrors: 0,
-    totalSteps: 0,
-  },
-  { 
-    burnerNumber: 3, 
-    isOn: false, 
-    state: 'CLEAN', 
-    position: 'AT_BURNER', 
-    currentMenu: null, 
-    currentOrderId: null, 
-    currentStep: 0, 
-    stepStartTime: null, 
-    burnerOnSince: null, 
-    addedIngredients: [],
-    temperature: WOK_TEMP.AMBIENT,
-    isStirFrying: false,
-    stirFryStartTime: null,
-    heatLevel: 3, // 기본 강불
-    stirFryCount: 0,
-    hasWater: false,
-    waterTemperature: WOK_TEMP.AMBIENT,
-    waterBoilStartTime: null,
-    isBoiling: false,
-    recipeErrors: 0,
-    totalSteps: 0,
-  },
+  createWok('burner_1', 1),
+  createWok('burner_2', 2),
+  createWok('burner_3', 3),
 ]
 
 const TARGET_MENUS = 3
@@ -98,7 +100,11 @@ interface GameStore {
   kitchenLayout: KitchenLayout | null
   ingredients: IngredientInventory[]
   recipes: Recipe[]
-  seasonings: Seasoning[]
+  seasonings: Seasoning[] // 조미료 데이터 (기존 UI 호환용)
+
+  // 그리드 기반 주방 시스템
+  kitchenGrid: KitchenGrid | null
+  kitchenEquipment: KitchenEquipment[]
   
   // 냉장고/서랍 식자재 캐시 (location_code별)
   storageCache: Record<string, {
@@ -133,6 +139,33 @@ interface GameStore {
   selectedFridgePosition: string | null // 'FRIDGE_LT', 'FRIDGE_RT', etc.
   selectedFloor: number | null // 1 or 2
 
+  // 시점 이동 (조리존 ↔ 데코존)
+  currentZone: 'COOKING' | 'DECO'
+  decoZoneRect: { top: number; left: number; width: number; height: number } | null
+
+  // 재료 선택 모드 (INPUT = 투입존, SETTING = 세팅존)
+  ingredientMode: IngredientMode
+
+  // 데코존 상태
+  decoPlates: DecoPlate[]
+  decoSettingItems: DecoSettingItem[]
+  decoMistakes: number
+  selectedDecoIngredient: SelectedDecoIngredient | null
+
+  // 합치기 모드 상태
+  mergeMode: boolean
+  selectedSourcePlateId: string | null
+
+  // 묶음 상태 (주문별)
+  activeBundles: Map<string, BundleProgress[]>
+
+  // Supabase 마스터 데이터 (데코존/묶음/콜드메뉴)
+  plateTypes: PlateType[]
+  recipeBundles: RecipeBundle[]
+  decoIngredients: DecoIngredient[] // v3: decoDefaultItems → decoIngredients
+  decoSteps: DecoStep[] // v3: decoRules → decoSteps
+  ingredientSpecialActions: IngredientSpecialAction[]
+
   setStore: (store: Store | null) => void
   setUser: (user: User | null) => void
   setCurrentUser: (user: User | null) => void
@@ -143,7 +176,7 @@ interface GameStore {
   tickTimer: () => void
   checkMenuTimers: () => void // 메뉴 타이머 체크 (15분 초과 시 자동 취소)
   addMenuToQueue: (menuName: string) => void
-  assignMenuToWok: (menuId: string, burnerNumber: number) => void
+  assignMenuToWok: (menuId: string, burnerNumber: number, bundleId?: string) => void
   updateWok: (burnerNumber: number, updates: Partial<Wok>) => void
   updateWokTemperatures: () => void // 모든 웍의 온도 계산 및 업데이트
   setHeatLevel: (burnerNumber: number, level: number) => void // 불 세기 조절
@@ -158,8 +191,12 @@ interface GameStore {
   startGame: () => Promise<GameSession | null>
   endGame: () => Promise<void>
   getRecipeByMenuName: (menuName: string) => Recipe | undefined
-  getCurrentStepIngredients: (menuName: string, stepIndex: number) => { required_sku: string; required_amount: number; required_unit: string }[]
-  validateAndAdvanceIngredient: (burnerNumber: number, sku: string, amount: number, isSeasoning: boolean) => boolean
+  // v3: 레시피에서 스텝 추출 (recipe_bundles 중첩 구조 처리)
+  getRecipeSteps: (recipe: Recipe | undefined, bundleId?: string | null) => RecipeStep[]
+  // v3: RecipeIngredient 객체 배열 반환 (required_sku 대신 FK 사용)
+  getCurrentStepIngredients: (menuName: string, stepIndex: number, bundleId?: string | null) => RecipeIngredient[]
+  // v3: recipeIngredientId (FK) 기반 매칭으로 변경
+  validateAndAdvanceIngredient: (burnerNumber: number, recipeIngredientId: string, amount: number) => boolean
   validateAndAdvanceAction: (burnerNumber: number, actionType: string) => { ok: boolean; burned?: boolean }
   
   // 4호박스 뷰 액션
@@ -168,7 +205,57 @@ interface GameStore {
   openFridgeDoor: () => void
   selectFloor: (floor: number) => void
   backToFridgeZoom: () => void
-  
+
+  // 시점 이동 액션
+  setZone: (zone: 'COOKING' | 'DECO') => void
+  openDecoZone: () => void
+
+  // 재료 선택 모드 액션
+  setIngredientMode: (mode: IngredientMode) => void
+
+  // 데코존 액션
+  addToDecoZone: (plate: DecoPlate) => boolean
+  removeFromDecoZone: (plateId: string) => void
+  selectDecoIngredient: (ingredient: SelectedDecoIngredient) => void
+  clearDecoSelection: () => void
+  applyDecoItem: (
+    plateId: string,
+    gridPosition: number,
+    ingredientId: string,
+    amount: number
+  ) => { success: boolean; message: string; isPositionError?: boolean; allowedPositions?: number[] }
+  mergeBundles: (targetPlateId: string, sourcePlateId: string) => { success: boolean; message: string }
+  enterMergeMode: (sourcePlateId: string) => void
+  exitMergeMode: () => void
+  getNextMergeStep: (recipeId: string) => DecoStep | null
+  servePlate: (plateId: string) => boolean
+  checkDecoComplete: (plateId: string) => boolean
+  addDecoMistake: () => void
+  // v3: getDecoRuleForIngredient → getDecoStepForIngredient
+  getDecoStepForIngredient: (ingredientId: string, recipeId: string) => DecoStep | null
+
+  // 세팅존 액션
+  addSettingItem: (item: Omit<DecoSettingItem, 'id' | 'remainingAmount'>) => void
+  useSettingItem: (itemId: string, amount: number) => boolean
+  removeSettingItem: (itemId: string) => void
+
+  // 묶음 진행 상태 업데이트
+  updateBundleProgress: (orderId: string, bundleProgress: Omit<BundleProgress, 'assignedBurner' | 'plateTypeId'> & { assignedBurner?: number; plateTypeId?: string }) => void
+
+  // 재료 선택 콜백 (StorageEquipment에서 사용)
+  onIngredientSelected: ((ing: IngredientInventory) => void) | null
+  onMultipleIngredientsSelected: ((ings: any[]) => void) | null
+  setIngredientCallbacks: (
+    onSelect: ((ing: IngredientInventory) => void) | null,
+    onMultiple?: ((ings: any[]) => void) | null
+  ) => void
+
+  // 조미료 선택 콜백 (SeasoningEquipment에서 사용)
+  onSeasoningSelected: ((seasoning: Seasoning, amount: number, unit: string) => void) | null
+  setSeasoningCallback: (
+    onSelect: ((seasoning: Seasoning, amount: number, unit: string) => void) | null
+  ) => void
+
   reset: () => void
 }
 
@@ -180,7 +267,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   kitchenLayout: null,
   ingredients: [],
   recipes: [],
-  seasonings: [],
+  seasonings: [], // 조미료 데이터 (기존 UI 호환용)
+
+  // 그리드 기반 주방 시스템
+  kitchenGrid: null,
+  kitchenEquipment: [],
+
   storageCache: {},
 
   isPlaying: false,
@@ -198,14 +290,60 @@ export const useGameStore = create<GameStore>((set, get) => ({
   selectedFridgePosition: null,
   selectedFloor: null,
 
+  // 시점 이동 초기값
+  currentZone: 'COOKING',
+  decoZoneRect: null,
+
+  // 재료 선택 모드 초기값
+  ingredientMode: null,
+
+  // 데코존 초기값
+  decoPlates: [],
+  decoSettingItems: [],
+  decoMistakes: 0,
+  selectedDecoIngredient: null,
+
+  // 합치기 모드 초기값
+  mergeMode: false,
+  selectedSourcePlateId: null,
+
+  // 묶음 상태 초기값
+  activeBundles: new Map(),
+
+  // Supabase 마스터 데이터 초기값
+  plateTypes: [],
+  recipeBundles: [],
+  decoIngredients: [], // v3: decoDefaultItems → decoIngredients
+  decoSteps: [], // v3: decoRules → decoSteps
+  ingredientSpecialActions: [],
+
+  // 재료 선택 콜백 (StorageEquipment에서 사용)
+  onIngredientSelected: null,
+  onMultipleIngredientsSelected: null,
+  setIngredientCallbacks: (onSelect, onMultiple) => set({
+    onIngredientSelected: onSelect,
+    onMultipleIngredientsSelected: onMultiple ?? null,
+  }),
+
+  // 조미료 선택 콜백 (SeasoningEquipment에서 사용)
+  onSeasoningSelected: null,
+  setSeasoningCallback: (onSelect) => set({
+    onSeasoningSelected: onSelect,
+  }),
+
   setStore: (store) => set({ currentStore: store }),
   setUser: (user) => set({ currentUser: user }),
   setCurrentUser: (user) => set({ currentUser: user }),
   setLevel: (level) => set({ level }),
 
-  resetGameState: () =>
+  resetGameState: () => {
+    const { kitchenEquipment } = get()
+    const woks = kitchenEquipment.length > 0
+      ? createWoksFromEquipment(kitchenEquipment)
+      : INITIAL_WOKS.map((w) => ({ ...w }))
+
     set({
-      woks: INITIAL_WOKS.map((w) => ({ ...w })),
+      woks,
       menuQueue: [],
       actionLogs: [],
       burnerUsageHistory: [],
@@ -213,9 +351,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
       completedMenus: 0,
       usedMenuNames: new Set(),
       lastServeError: null,
-    }),
+      // 데코존 상태 초기화
+      decoPlates: [],
+      decoSettingItems: [],
+      decoMistakes: 0,
+      selectedDecoIngredient: null,
+      mergeMode: false,
+      selectedSourcePlateId: null,
+      activeBundles: new Map(),
+    })
+  },
 
-  reset: () =>
+  reset: () => {
     set({
       currentStore: null,
       currentUser: null,
@@ -225,6 +372,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ingredients: [],
       recipes: [],
       seasonings: [],
+      kitchenGrid: null,
+      kitchenEquipment: [],
       storageCache: {},
       isPlaying: false,
       elapsedSeconds: 0,
@@ -239,7 +388,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
       fridgeViewState: 'CLOSED',
       selectedFridgePosition: null,
       selectedFloor: null,
-    }),
+      currentZone: 'COOKING',
+      decoZoneRect: null,
+      // 데코존/묶음/콜드메뉴 상태 초기화
+      ingredientMode: null,
+      decoPlates: [],
+      decoSettingItems: [],
+      decoMistakes: 0,
+      selectedDecoIngredient: null,
+      activeBundles: new Map(),
+      plateTypes: [],
+      recipeBundles: [],
+      decoIngredients: [], // v3: decoDefaultItems → decoIngredients
+      decoSteps: [], // v3: decoRules → decoSteps
+      ingredientSpecialActions: [],
+    })
+  },
 
   tickTimer: () => set((s) => ({ elapsedSeconds: s.elapsedSeconds + 1 })),
 
@@ -267,11 +431,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
                     state: 'DIRTY' as const,
                     currentMenu: null,
                     currentOrderId: null,
+                    currentBundleId: null,
                     currentStep: 0,
                     stepStartTime: null,
                     isOn: false,
                     burnerOnSince: null,
-                    addedIngredients: [],
+                    addedIngredientIds: [],
                     recipeErrors: 0,
                     totalSteps: 0,
                   }
@@ -314,7 +479,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }))
   },
 
-  assignMenuToWok: (menuId, burnerNumber) => {
+  assignMenuToWok: (menuId, burnerNumber, bundleId) => {
     const { woks, menuQueue, getRecipeByMenuName } = get()
     const order = menuQueue.find((o) => o.id === menuId)
     if (!order || order.status !== 'WAITING') return
@@ -325,7 +490,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const recipe = getRecipeByMenuName(order.menuName)
     if (!recipe) return
 
-    const totalSteps = recipe.steps?.length || 0
+    // v3: recipe_bundles에서 스텝 추출
+    const filteredSteps = get().getRecipeSteps(recipe, bundleId)
+    const totalSteps = filteredSteps.length
 
     set((s) => ({
       woks: s.woks.map((w) =>
@@ -334,14 +501,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
               ...w,
               currentMenu: order.menuName,
               currentOrderId: order.id,
+              currentBundleId: bundleId ?? null, // 묶음 ID 저장
               currentStep: 0,
               stepStartTime: Date.now(),
               isOn: true,
               burnerOnSince: Date.now(),
-              addedIngredients: [], // 초기화
+              addedIngredientIds: [], // 초기화
               stirFryCount: 0, // 볶기 횟수 초기화
               recipeErrors: 0, // 오류 횟수 초기화
-              totalSteps: totalSteps, // 총 스텝 수 저장
+              totalSteps: totalSteps, // 해당 묶음의 스텝 수 저장
             }
           : w
       ),
@@ -354,7 +522,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       menuName: order.menuName,
       burnerNumber,
       isCorrect: true,
-      message: `화구${burnerNumber}: ${order.menuName} 배정`,
+      message: `화구${burnerNumber}: ${order.menuName}${bundleId ? ' (묶음)' : ''} 배정`,
     })
   },
 
@@ -383,7 +551,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
             // 100도 도달 시
             if (newWaterTemp >= WOK_TEMP.WATER_BOIL && !newWaterBoilStartTime) {
               newWaterBoilStartTime = now
-              console.log(`화구${wok.burnerNumber}: 💧 물이 100°C 도달!`)
             }
           }
           
@@ -392,7 +559,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
             const boilDuration = now - newWaterBoilStartTime
             if (boilDuration >= WOK_TEMP.WATER_BOIL_DURATION && !newIsBoiling) {
               newIsBoiling = true
-              console.log(`화구${wok.burnerNumber}: 💦 물이 끓기 시작!`)
             }
           }
           
@@ -436,7 +602,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         // WET 상태에서 180도 도달 시 CLEAN으로 자동 변경
         if (wok.state === 'WET' && newTemp >= 180) {
           newState = 'CLEAN'
-          console.log(`화구${wok.burnerNumber}: ✨ 웍이 말랐습니다! (온도: ${Math.round(newTemp)}°C)`)
         }
         
         if (newTemp >= WOK_TEMP.BURNED && wok.state !== 'BURNED') {
@@ -466,9 +631,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
             burnerOnSince: null,
             currentMenu: null,
             currentOrderId: null,
+            currentBundleId: null,
             currentStep: 0,
             stepStartTime: null,
-            addedIngredients: [],
+            addedIngredientIds: [],
             isStirFrying: false,
             stirFryStartTime: null,
             stirFryCount: 0,
@@ -486,7 +652,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         } else if (newTemp < WOK_TEMP.OVERHEATING && wok.state === 'OVERHEATING') {
           // 360°C 미만 → 정상 복귀
           newState = 'CLEAN'
-          console.log(`화구${wok.burnerNumber}: ✅ 정상 복귀 (온도: ${Math.round(newTemp)}°C)`)
         }
 
         return {
@@ -649,11 +814,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
               state: 'DIRTY' as const,
               currentMenu: null,
               currentOrderId: null,
+              currentBundleId: null,
               currentStep: 0,
               stepStartTime: null,
               isOn: false,
               burnerOnSince: null,
-              addedIngredients: [],
+              addedIngredientIds: [],
               temperature: WOK_TEMP.AMBIENT,
               isStirFrying: false,
               stirFryStartTime: null,
@@ -691,7 +857,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!wok || !wok.currentMenu || !wok.currentOrderId) return false
 
     const recipe = getRecipeByMenuName(wok.currentMenu)
-    const sortedSteps = recipe?.steps ? [...recipe.steps].sort((a, b) => a.step_number - b.step_number) : []
+    // v3: recipe_bundles에서 스텝 추출 (이미 정렬됨)
+    const sortedSteps = get().getRecipeSteps(recipe, wok.currentBundleId)
     if (!recipe || !sortedSteps.length) return false
     const isComplete = wok.currentStep >= sortedSteps.length
     if (!isComplete) {
@@ -732,12 +899,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ),
       woks: s.woks.map((w) =>
         w.burnerNumber === burnerNumber
-          ? { ...w, state: 'DIRTY' as const, currentMenu: null, currentOrderId: null, currentStep: 0, stepStartTime: null, isOn: false, burnerOnSince: null, addedIngredients: [], recipeErrors: 0, totalSteps: 0 }
+          ? { ...w, state: 'DIRTY' as const, currentMenu: null, currentOrderId: null, currentBundleId: null, currentStep: 0, stepStartTime: null, isOn: false, burnerOnSince: null, addedIngredientIds: [], recipeErrors: 0, totalSteps: 0 }
           : w
       ),
       completedMenus: s.completedMenus + 1,
     }))
-    
+
     get().logAction({
       actionType: 'SERVE',
       menuName: completedMenuName,
@@ -792,6 +959,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     set((s) => ({ actionLogs: [...s.actionLogs, log] }))
 
+    // DB 로깅 (실패해도 게임 진행에 영향 없음)
     if (currentSession?.id) {
       supabase.from('game_action_logs').insert({
         session_id: currentSession.id,
@@ -800,14 +968,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
         action_type: log.actionType,
         menu_name: log.menuName ?? null,
         burner_number: log.burnerNumber ?? null,
-        ingredient_sku: log.ingredientSKU ?? null,
+        ingredient_id: log.ingredientId ?? null, // v3: ingredient_sku → ingredient_id
         amount_input: log.amountInput ?? null,
-        expected_sku: log.expectedSKU ?? null,
         expected_amount: log.expectedAmount ?? null,
         is_correct: log.isCorrect,
         timing_correct: log.timingCorrect ?? null,
         action_detail: log.message,
-      }).then(() => {})
+      }).then(({ error }) => {
+        if (error) {
+          console.warn('⚠️ game_action_logs 저장 실패 (게임은 계속됨):', error.message)
+        }
+      })
     }
   },
 
@@ -823,36 +994,173 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   loadStoreData: async (storeId) => {
-    const [layoutRes, ingredientsRes, recipesRes, seasoningsRes] = await Promise.all([
-      supabase.from('kitchen_layouts').select('*').eq('store_id', storeId).single(),
-      supabase
-        .from('ingredients_inventory')
-        .select('*, ingredient_master:ingredients_master(*), storage_location:storage_locations(*)')
-        .eq('store_id', storeId),
-      supabase
-        .from('recipes')
-        .select(
-          `*,
-          steps:recipe_steps(
-            *,
-            ingredients:recipe_ingredients(*)
-          )`
-        )
-        .eq('store_id', storeId),
-      supabase.from('seasonings').select('*').eq('store_id', storeId),
-    ])
+    // 기본 데이터 로드 (v3: kitchen_layouts, seasonings 테이블 삭제됨)
+    try {
+      const [ingredientsRes, recipesRes] = await Promise.all([
+        supabase
+          .from('ingredients_inventory')
+          .select('*, ingredient_master:ingredients_master(*), storage_location:storage_locations(*)')
+          .eq('store_id', storeId),
+        // v3: recipe_bundles 중첩 구조로 변경
+        supabase
+          .from('recipes')
+          .select(
+            `*,
+            recipe_bundles(
+              *,
+              plate_type:plate_types(*),
+              recipe_steps(
+                *,
+                recipe_ingredients(
+                  *,
+                  ingredient_master:ingredients_master(*),
+                  inventory:ingredients_inventory(
+                    *,
+                    storage_location:storage_locations(*)
+                  )
+                )
+              )
+            )`
+          )
+          .eq('store_id', storeId),
+      ])
 
-    set({
-      kitchenLayout: layoutRes.data ?? null,
-      ingredients: ingredientsRes.data ?? [],
-      recipes: recipesRes.data ?? [],
-      seasonings: seasoningsRes.data ?? [],
-    })
+      // v3: 조미료는 ingredients_inventory에서 location_type='SEASONING'으로 필터
+      const seasoningsFromInventory = (ingredientsRes.data ?? [])
+        .filter((inv: any) => inv.storage_location?.location_type === 'SEASONING')
+        .map((inv: any) => ({
+          id: inv.id,
+          store_id: inv.store_id,
+          seasoning_name: inv.ingredient_master?.ingredient_name ?? inv.id,
+          position_code: inv.storage_location?.location_code ?? 'UNKNOWN',
+          position_name: inv.storage_location?.location_name ?? '조미료',
+          base_unit: inv.standard_unit,
+          ingredient_master_id: inv.ingredient_master_id,
+        }))
+
+      set({
+        kitchenLayout: null, // v3: kitchen_layouts 삭제됨
+        ingredients: ingredientsRes.data ?? [],
+        recipes: recipesRes.data ?? [],
+        seasonings: seasoningsFromInventory as Seasoning[],
+      })
+    } catch (error) {
+      console.error('❌ 기본 데이터 로드 실패:', error)
+      // 기본 데이터 로드 실패해도 계속 진행
+    }
+
+    // === 그리드 기반 주방 데이터 로드 ===
+    try {
+      const { data: gridData, error: gridError } = await supabase
+        .from('kitchen_grids')
+        .select('*')
+        .eq('store_id', storeId)
+        .eq('is_active', true)
+        .maybeSingle()
+
+      if (gridError) {
+        console.warn('⚠️ kitchen_grids 로드 실패:', gridError.message)
+        set({ kitchenGrid: null, kitchenEquipment: [] })
+        // return 제거 - 데코 데이터 로드를 계속 진행
+      } else if (!gridData) {
+        console.warn('⚠️ 해당 매장의 kitchen_grids 데이터가 없습니다. 레거시 레이아웃 사용.')
+        set({ kitchenGrid: null, kitchenEquipment: [] })
+        // return 제거 - 데코 데이터 로드를 계속 진행
+      } else {
+        // gridData가 있을 때만 equipment 로드
+        const { data: equipmentData, error: equipmentError } = await supabase
+          .from('kitchen_equipment')
+          .select('*')
+          .eq('kitchen_grid_id', gridData.id)
+          .eq('is_active', true)
+          .order('display_order')
+
+        if (equipmentError) {
+          console.warn('⚠️ kitchen_equipment 로드 실패:', equipmentError.message)
+          set({ kitchenGrid: gridData as KitchenGrid, kitchenEquipment: [] })
+        } else {
+          const equipmentList = (equipmentData ?? []) as KitchenEquipment[]
+          const dynamicWoks = createWoksFromEquipment(equipmentList)
+
+          set({
+            kitchenGrid: gridData as KitchenGrid,
+            kitchenEquipment: equipmentList,
+            woks: dynamicWoks,
+          })
+        }
+      }
+    } catch (error) {
+      console.error('❌ 그리드 주방 데이터 로드 중 예외:', error)
+      // 기존 기능 유지 - 에러 시에도 레거시 레이아웃 사용
+    }
+
+    // === 데코존/묶음/콜드메뉴 마스터 데이터 로드 ===
+    try {
+      const { recipes } = get()
+      const recipeIds = recipes.map((r) => r.id)
+
+      // v3: store_id 기반 데이터 병렬 로드
+      const [decoIngredientsRes, plateTypesRes] = await Promise.all([
+        // v3: deco_default_items → deco_ingredients
+        supabase
+          .from('deco_ingredients')
+          .select('*, ingredient_master:ingredients_master(*)')
+          .eq('store_id', storeId)
+          .order('display_order'),
+        supabase.from('plate_types').select('*').eq('store_id', storeId),
+      ])
+
+      const plateTypes = (plateTypesRes.data ?? []) as PlateType[]
+      const decoIngredients = (decoIngredientsRes.data ?? []) as DecoIngredient[]
+
+      // store_id 기반 데이터 저장
+      set({ plateTypes, decoIngredients })
+
+      // recipe_id 기반 데이터는 레시피가 있어야 로드
+      if (recipeIds.length === 0) {
+        return
+      }
+
+      // v3: recipe_id 기반 데이터 병렬 로드 (deco_item_images 제거)
+      const [
+        recipeBundlesRes,
+        decoStepsRes,
+        specialActionsRes,
+      ] = await Promise.all([
+        // recipe_id 기반 + JOIN (plate_type 정보 포함)
+        supabase
+          .from('recipe_bundles')
+          .select('*, plate_type:plate_types(*)')
+          .in('recipe_id', recipeIds)
+          .order('bundle_order'),
+        // v3: deco_rules → deco_steps
+        supabase
+          .from('deco_steps')
+          .select('*')
+          .in('recipe_id', recipeIds)
+          .order('deco_order'),
+        // recipe_id 기반
+        supabase
+          .from('ingredient_special_actions')
+          .select('*')
+          .in('recipe_id', recipeIds),
+      ])
+
+      const recipeBundles = (recipeBundlesRes.data ?? []) as RecipeBundle[]
+      const decoSteps = (decoStepsRes.data ?? []) as DecoStep[]
+      const ingredientSpecialActions = (specialActionsRes.data ?? []) as IngredientSpecialAction[]
+
+      set({
+        recipeBundles,
+        decoSteps, // v3: decoRules → decoSteps
+        ingredientSpecialActions,
+      })
+    } catch (error) {
+      console.error('❌ 데코 마스터 데이터 로드 예외:', error)
+    }
   },
 
   preloadStorageData: async (storeId) => {
-    console.log('🔄 식자재 데이터 프리로딩 시작...')
-    
     // 모든 냉장고/서랍 위치 코드
     const locationCodes = [
       'FRIDGE_LT_F1', 'FRIDGE_LT_F2',
@@ -880,7 +1188,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
           }
 
           if (!location) {
-            console.log(`ℹ️ ${locationCode} - DB에 없음 (건너뜀)`)
             return { locationCode, data: null }
           }
 
@@ -896,12 +1203,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
           }
 
           if (!ingredients || ingredients.length === 0) {
-            console.log(`ℹ️ ${locationCode} - 식자재 없음`)
             return { locationCode, data: null }
           }
 
-          console.log(`✅ ${locationCode} - ${ingredients.length}개 식자재 로드`)
-          
           return {
             locationCode,
             data: {
@@ -928,7 +1232,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     })
 
-    console.log(`🎉 프리로딩 완료: ${successCount}/${locationCodes.length}개 위치 캐시됨`)
     set({ storageCache: cache })
   },
 
@@ -938,23 +1241,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     resetGameState()
 
-    const { data: session, error } = await supabase
-      .from('game_sessions')
-      .insert({
-        user_id: currentUser.id,
-        store_id: currentStore.id,
-        level,
-        total_menus_target: TARGET_MENUS,
-        start_time: new Date().toISOString(),
-        status: 'IN_PROGRESS',
-      })
-      .select()
-      .single()
+    // v3: game_sessions 테이블 스키마가 다를 수 있으므로 로컬 세션 사용
+    // DB 저장은 선택적으로 시도 (실패해도 게임 진행 가능)
+    const tempSession: GameSession = {
+      id: `session-${Date.now()}`,
+      user_id: currentUser.id,
+      store_id: currentStore.id,
+      level,
+      total_menus_target: TARGET_MENUS,
+      start_time: new Date().toISOString(),
+      status: 'IN_PROGRESS',
+    }
 
-    if (error || !session) return null
+    const { kitchenEquipment } = get()
+    const woks = kitchenEquipment.length > 0
+      ? createWoksFromEquipment(kitchenEquipment)
+      : INITIAL_WOKS.map((w) => ({ ...w }))
 
     set({
-      currentSession: session as GameSession,
+      currentSession: tempSession,
       isPlaying: true,
       level,
       elapsedSeconds: 0,
@@ -962,10 +1267,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
       menuQueue: [],
       actionLogs: [],
       burnerUsageHistory: [],
-      woks: INITIAL_WOKS.map((w) => ({ ...w })),
+      woks,
       usedMenuNames: new Set(),
     })
-    return session as GameSession
+
+    // 백그라운드로 DB 저장 시도 (실패해도 무시)
+    supabase
+      .from('game_sessions')
+      .insert({
+        user_id: currentUser.id,
+        store_id: currentStore.id,
+      })
+      .select()
+      .single()
+      .then(({ data, error }) => {
+        if (data && !error) {
+          // DB 세션 ID로 업데이트
+          set((s) => ({
+            currentSession: s.currentSession ? { ...s.currentSession, id: data.id } : null
+          }))
+          console.log('✅ game_session 저장 완료:', data.id)
+        }
+        // 에러는 무시 (이미 게임 시작됨)
+      })
+
+    return tempSession
   },
 
   endGame: async () => {
@@ -1031,121 +1357,159 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return get().recipes.find((r) => r.menu_name === menuName)
   },
 
-  getCurrentStepIngredients: (menuName, stepIndex) => {
-    const recipe = get().getRecipeByMenuName(menuName)
-    if (!recipe?.steps?.length) return []
-    const sortedSteps = [...recipe.steps].sort((a, b) => a.step_number - b.step_number)
-    if (stepIndex >= sortedSteps.length) return []
-    const step = sortedSteps[stepIndex]
-    return (step.ingredients ?? []).map((i) => ({
-      required_sku: i.required_sku,
-      required_amount: i.required_amount,
-      required_unit: i.required_unit,
-    }))
+  // v3: 레시피에서 스텝 추출 (recipe_bundles 중첩 구조 처리)
+  getRecipeSteps: (recipe, bundleId) => {
+    if (!recipe?.recipe_bundles?.length) return []
+
+    // bundleId가 있으면 해당 묶음의 스텝만 필터링
+    const targetBundles = bundleId
+      ? recipe.recipe_bundles.filter((b) => b.id === bundleId)
+      : recipe.recipe_bundles
+
+    // 모든 번들의 스텝을 플랫하게 가져와서 정렬
+    const allSteps = targetBundles.flatMap((b) => b.recipe_steps ?? [])
+    return [...allSteps].sort((a, b) => a.step_number - b.step_number)
   },
 
-  validateAndAdvanceIngredient: (burnerNumber, sku, amount, isSeasoning) => {
+  // v3: RecipeIngredient 객체 배열 반환 (FK 기반)
+  getCurrentStepIngredients: (menuName, stepIndex, bundleId) => {
+    const recipe = get().getRecipeByMenuName(menuName)
+    if (!recipe?.recipe_bundles?.length) return []
+
+    // v3: recipe_bundles에서 bundleId로 필터링 후 recipe_steps 가져오기
+    const targetBundles = bundleId
+      ? recipe.recipe_bundles.filter((b) => b.id === bundleId)
+      : recipe.recipe_bundles
+
+    // 모든 번들의 스텝을 플랫하게 가져와서 정렬
+    const allSteps = targetBundles.flatMap((b) => b.recipe_steps ?? [])
+    const sortedSteps = [...allSteps].sort((a, b) => a.step_number - b.step_number)
+
+    if (stepIndex >= sortedSteps.length) return []
+    const step = sortedSteps[stepIndex]
+
+    // v3: recipe_ingredients 배열 직접 반환
+    return step.recipe_ingredients ?? []
+  },
+
+  // v3: FK 기반 매칭으로 변경 (recipeIngredientId 사용)
+  validateAndAdvanceIngredient: (burnerNumber, recipeIngredientId, amount) => {
     const { woks, getRecipeByMenuName, getCurrentStepIngredients, logAction, level } = get()
     const wok = woks.find((w) => w.burnerNumber === burnerNumber)
     if (!wok || !wok.currentMenu) return false
 
     const recipe = getRecipeByMenuName(wok.currentMenu)
-    if (!recipe?.steps?.length) return false
-    const reqs = getCurrentStepIngredients(wok.currentMenu, wok.currentStep)
-    
+    if (!recipe?.recipe_bundles?.length) return false
+
+    // v3: bundleId가 있으면 해당 묶음의 스텝만 조회
+    const reqs = getCurrentStepIngredients(wok.currentMenu, wok.currentStep, wok.currentBundleId)
+
+    // v3: 해당 recipeIngredientId와 일치하는 재료 찾기
+    const matchedIngredient = reqs.find((r) => r.id === recipeIngredientId)
+    const displayName = matchedIngredient?.display_name
+      ?? matchedIngredient?.ingredient_master?.ingredient_name
+      ?? recipeIngredientId
+
+    // 디버그 로깅
+    console.log(`🔍 validateAndAdvanceIngredient v3 디버그:`)
+    console.log(`  - 화구: ${burnerNumber}, 현재 스텝: ${wok.currentStep}`)
+    console.log(`  - bundleId: ${wok.currentBundleId}`)
+    console.log(`  - 입력 recipeIngredientId: "${recipeIngredientId}", 수량: ${amount}`)
+    console.log(`  - 현재 스텝 요구사항 (${reqs.length}개):`, reqs.map(r => ({ id: r.id, name: r.display_name })))
+    console.log(`  - 이미 투입된 재료 ID:`, wok.addedIngredientIds)
+
     const isBeginnerLevel = level === 'BEGINNER'
-    
-    // 이미 추가한 재료는 다시 추가 불가
-    if (wok.addedIngredients.includes(sku)) {
+
+    // v3: 이미 추가한 재료 ID는 다시 추가 불가
+    if (wok.addedIngredientIds.includes(recipeIngredientId)) {
       logAction({
         actionType: 'ADD_TO_WOK',
         menuName: wok.currentMenu,
         burnerNumber,
-        ingredientSKU: sku,
+        ingredientId: recipeIngredientId, // v3: ingredientSKU → ingredientId
         amountInput: amount,
         isCorrect: false,
-        message: `화구${burnerNumber}: 이미 투입한 재료입니다`,
+        message: `화구${burnerNumber}: 이미 투입한 재료입니다 (${displayName})`,
       })
       return false
     }
-    
-    const match = reqs.find((r) => {
-      if (isSeasoning) {
-        return r.required_sku.startsWith('SEASONING:') && r.required_sku.includes(sku.split(':')[1]) && r.required_amount === amount
-      }
-      return r.required_sku === sku && r.required_amount === amount
-    })
+
+    // v3: recipeIngredientId와 수량으로 매칭
+    const match = reqs.find((r) => r.id === recipeIngredientId && r.required_amount === amount)
     const isCorrect = !!match
+    console.log(`  - 매칭 결과: ${isCorrect ? '✅ 정확' : '❌ 오류'}`)
 
     logAction({
       actionType: 'ADD_TO_WOK',
       menuName: wok.currentMenu,
       burnerNumber,
-      ingredientSKU: sku,
+      ingredientId: recipeIngredientId, // v3: ingredientSKU → ingredientId
       amountInput: amount,
-      expectedSKU: match?.required_sku,
       expectedAmount: match?.required_amount,
       isCorrect,
-      message: isCorrect ? `화구${burnerNumber}: 재료 투입 정확` : `화구${burnerNumber}: 재료 투입 오류`,
+      message: isCorrect ? `화구${burnerNumber}: 재료 투입 정확 (${displayName})` : `화구${burnerNumber}: 재료 투입 오류`,
     })
 
     // 신입 단계에서는 틀리면 중단
     if (isBeginnerLevel && !isCorrect) {
       return false
     }
-    
+
     // 신입이 아닌 경우, 틀려도 오류 카운트만 증가하고 진행
     const errorIncrement = isCorrect ? 0 : 1
 
-    // 재료 투입 시 온도 하락 (재료 특성에 따라)
+    // v3: 재료 투입 시 온도 하락 (ingredient_master.category 기반)
     let tempDrop = WOK_TEMP.COOLING.SEASONING // 기본값
-    
-    // 재료 카테고리 판단 (SKU 기반)
-    const skuLower = sku.toLowerCase()
-    if (skuLower.includes('양파') || skuLower.includes('애호박') || skuLower.includes('당근') || 
-        skuLower.includes('onion') || skuLower.includes('zucchini') || skuLower.includes('carrot')) {
+
+    const category = matchedIngredient?.ingredient_master?.category?.toLowerCase() ?? ''
+    const locationTypeRaw = matchedIngredient?.inventory?.storage_location?.location_type
+    const locationType = typeof locationTypeRaw === 'string' ? locationTypeRaw.toUpperCase() : ''
+
+    if (locationType === 'SEASONING') {
+      tempDrop = WOK_TEMP.COOLING.SEASONING
+    } else if (category.includes('vegetable') || category.includes('채소')) {
       tempDrop = WOK_TEMP.COOLING.VEGETABLE
-    } else if (skuLower.includes('새우') || skuLower.includes('오징어') || 
-               skuLower.includes('shrimp') || skuLower.includes('squid')) {
+    } else if (category.includes('seafood') || category.includes('해산물')) {
       tempDrop = WOK_TEMP.COOLING.SEAFOOD
-    } else if (skuLower.includes('계란') || skuLower.includes('egg')) {
+    } else if (category.includes('egg') || category.includes('계란')) {
       tempDrop = WOK_TEMP.COOLING.EGG
-    } else if (skuLower.includes('밥') || skuLower.includes('rice')) {
+    } else if (category.includes('rice') || category.includes('밥')) {
       tempDrop = WOK_TEMP.COOLING.RICE
     }
-    
+
     // 온도 하락 적용
     const newTemp = Math.max(WOK_TEMP.AMBIENT, wok.temperature - tempDrop)
-    console.log(`화구${burnerNumber}: 재료 투입으로 온도 하락 ${Math.round(wok.temperature)}°C → ${Math.round(newTemp)}°C (-${tempDrop}°C)`)
 
-    // 투입한 재료 목록에 추가
-    const newAddedIngredients = [...wok.addedIngredients, sku]
-    
-    // 현재 스텝의 모든 재료가 투입되었는지 확인
-    const allIngredientsAdded = reqs.every((req) => 
-      newAddedIngredients.some((added) => {
-        // SEASONING인 경우 부분 매칭
-        if (req.required_sku.startsWith('SEASONING:')) {
-          return added.includes(req.required_sku.split(':')[1])
-        }
-        return added === req.required_sku
-      })
-    )
+    // v3: 투입한 재료 ID 목록에 추가
+    const newAddedIngredientIds = [...wok.addedIngredientIds, recipeIngredientId]
+
+    // v3: 현재 스텝의 모든 재료가 투입되었는지 확인 (ID 기반)
+    console.log(`  - 모든 재료 투입 검사:`)
+    console.log(`    - 투입 예정 ID 목록:`, newAddedIngredientIds)
+    console.log(`    - 요구 재료 ID (${reqs.length}개):`, reqs.map(r => r.id))
+
+    const allIngredientsAdded = reqs.every((req) => {
+      const found = newAddedIngredientIds.includes(req.id)
+      console.log(`    - 재료 "${req.display_name ?? req.id}" 투입됨: ${found}`)
+      return found
+    })
+
+    console.log(`  - 모든 재료 투입 완료: ${allIngredientsAdded}`)
 
     if (allIngredientsAdded) {
       // 모든 재료 투입 완료 → 다음 스텝으로
       const nextStep = wok.currentStep + 1
-      console.log(`화구${burnerNumber}: 스텝 ${wok.currentStep} 모든 재료 투입 완료 (${reqs.length}개) → 스텝 ${nextStep}로 진행`)
-      
+      console.log(`🎉 화구${burnerNumber}: ✅ 스텝 ${wok.currentStep} 완료 → 스텝 ${nextStep}로 진행`)
+
       set((s) => ({
         woks: s.woks.map((w) =>
           w.burnerNumber === burnerNumber
-            ? { 
-                ...w, 
-                currentStep: nextStep, 
+            ? {
+                ...w,
+                currentStep: nextStep,
                 stepStartTime: Date.now(),
                 burnerOnSince: w.isOn ? Date.now() : w.burnerOnSince,
-                addedIngredients: [], // 다음 스텝 시작 시 초기화
+                addedIngredientIds: [], // 다음 스텝 시작 시 초기화
                 temperature: newTemp, // 온도 반영
                 recipeErrors: w.recipeErrors + errorIncrement, // 오류 누적
               }
@@ -1154,14 +1518,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }))
     } else {
       // 아직 더 넣을 재료가 있음
-      console.log(`화구${burnerNumber}: 재료 투입 (${newAddedIngredients.length}/${reqs.length}) - 계속 진행`)
-      
       set((s) => ({
         woks: s.woks.map((w) =>
           w.burnerNumber === burnerNumber
-            ? { 
-                ...w, 
-                addedIngredients: newAddedIngredients,
+            ? {
+                ...w,
+                addedIngredientIds: newAddedIngredientIds,
                 burnerOnSince: w.isOn ? Date.now() : w.burnerOnSince,
                 temperature: newTemp, // 온도 반영
                 recipeErrors: w.recipeErrors + errorIncrement, // 오류 누적
@@ -1170,7 +1532,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ),
       }))
     }
-    
+
     return true
   },
 
@@ -1181,19 +1543,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const isBeginnerLevel = level === 'BEGINNER'
     const recipe = getRecipeByMenuName(wok.currentMenu)
-    const sortedSteps = recipe?.steps ? [...recipe.steps].sort((a, b) => a.step_number - b.step_number) : []
+    // v3: recipe_bundles에서 스텝 추출 (이미 정렬됨)
+    const sortedSteps = get().getRecipeSteps(recipe, wok.currentBundleId)
     const step = sortedSteps[wok.currentStep]
-    
-    console.log('액션 검증:', {
-      burnerNumber,
-      currentMenu: wok.currentMenu,
-      currentStep: wok.currentStep,
-      totalSteps: sortedSteps.length,
-      step,
-      actionType,
-      isBeginnerLevel,
-    })
-    
+
     // 현재 스텝이 ACTION 타입이 아닐 때
     if (!step || step.step_type !== 'ACTION') {
       logAction({
@@ -1220,10 +1573,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
       
       const newTemp = Math.max(WOK_TEMP.AMBIENT, wok.temperature - tempDrop)
-      
-      if (addWater) {
-        console.log(`화구${burnerNumber}: 💧 물 추가 (잘못된 타이밍이지만 신입 아님) - 온도 25°C로 리셋`)
-      }
       
       set((s) => ({
         woks: s.woks.map((w) =>
@@ -1256,8 +1605,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const currentWok = get().woks.find((w) => w.burnerNumber === burnerNumber)
         if (currentWok) {
           const newTemp = Math.max(WOK_TEMP.AMBIENT, currentWok.temperature - tempDrop)
-          console.log(`화구${burnerNumber}: 볶기 온도 하락 (1초 후) ${Math.round(currentWok.temperature)}°C → ${Math.round(newTemp)}°C`)
-          
+
           set((s) => ({
             woks: s.woks.map((w) =>
               w.burnerNumber === burnerNumber
@@ -1285,7 +1633,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           set((s) => ({
             woks: s.woks.map((w) =>
               w.burnerNumber === burnerNumber 
-                ? { ...w, state: 'BURNED' as const, currentMenu: null, currentOrderId: null, currentStep: 0, stepStartTime: null, isOn: false, burnerOnSince: null, addedIngredients: [], recipeErrors: 0, totalSteps: 0 } 
+                ? { ...w, state: 'BURNED' as const, currentMenu: null, currentOrderId: null, currentBundleId: null, currentStep: 0, stepStartTime: null, isOn: false, burnerOnSince: null, addedIngredientIds: [], recipeErrors: 0, totalSteps: 0 } 
                 : w
             ),
             menuQueue: orderId 
@@ -1308,7 +1656,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                   currentStep: w.currentStep + 1, 
                   stepStartTime: Date.now(),
                   burnerOnSince: w.isOn ? Date.now() : w.burnerOnSince,
-                  addedIngredients: [], // 다음 스텝 시작 시 재료 목록 초기화
+                  addedIngredientIds: [], // 다음 스텝 시작 시 재료 목록 초기화
                   recipeErrors: w.recipeErrors + (timingCorrect ? 0 : 1), // 타이밍 오류 카운트
                 }
               : w
@@ -1317,7 +1665,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return { ok: true }
       } else {
         // 현재 스텝이 볶기가 아님 - 온도 조절용
-        console.log(`화구${burnerNumber}: 추가 볶기 (온도 조절용)`)
         return { ok: true }
       }
     }
@@ -1348,21 +1695,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     
     const newTemp = Math.max(WOK_TEMP.AMBIENT, wok.temperature - tempDrop)
-    if (tempDrop > 0) {
-      console.log(`화구${burnerNumber}: ${actionType} 실행으로 온도 하락 ${Math.round(wok.temperature)}°C → ${Math.round(newTemp)}°C (-${tempDrop}°C)`)
-    }
-    
-    if (addWater) {
-      console.log(`화구${burnerNumber}: 💧 물 추가 - 온도 25°C로 리셋, 물 시스템 활성화`)
-    }
-    
+
     // 신입 단계에서만 타이밍 오류 시 타버림 처리
     if (isBeginnerLevel && !timingCorrect) {
       const orderId = wok.currentOrderId
       set((s) => ({
         woks: s.woks.map((w) =>
           w.burnerNumber === burnerNumber 
-            ? { ...w, state: 'BURNED' as const, currentMenu: null, currentOrderId: null, currentStep: 0, stepStartTime: null, isOn: false, burnerOnSince: null, addedIngredients: [], recipeErrors: 0, totalSteps: 0 } 
+            ? { ...w, state: 'BURNED' as const, currentMenu: null, currentOrderId: null, currentBundleId: null, currentStep: 0, stepStartTime: null, isOn: false, burnerOnSince: null, addedIngredientIds: [], recipeErrors: 0, totalSteps: 0 } 
             : w
         ),
         menuQueue: orderId 
@@ -1388,7 +1728,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 stepStartTime: Date.now(),
                 burnerOnSince: w.isOn ? Date.now() : w.burnerOnSince,
                 temperature: addWater ? WOK_TEMP.AMBIENT : newTemp,
-                addedIngredients: [], // 다음 스텝 시작 시 재료 목록 초기화
+                addedIngredientIds: [], // 다음 스텝 시작 시 재료 목록 초기화
                 hasWater: addWater,
                 waterTemperature: addWater ? WOK_TEMP.AMBIENT : w.waterTemperature,
                 waterBoilStartTime: null,
@@ -1439,10 +1779,547 @@ export const useGameStore = create<GameStore>((set, get) => ({
     selectedFloor: floor 
   }),
   
-  backToFridgeZoom: () => set({ 
-    fridgeViewState: 'ZOOMED', 
-    selectedFloor: null 
+  backToFridgeZoom: () => set({
+    fridgeViewState: 'ZOOMED',
+    selectedFloor: null
   }),
+
+  // 시점 이동
+  setZone: (zone) => set({ currentZone: zone }),
+
+  // 데코존 열기 (현재 위치 캡처 후 DECO 모드로 전환)
+  openDecoZone: () => {
+    const el = document.querySelector('[data-prep-table-placeholder]')
+    if (el) {
+      const r = el.getBoundingClientRect()
+      set({
+        decoZoneRect: { top: r.top, left: r.left, width: r.width, height: r.height },
+        currentZone: 'DECO',
+      })
+    } else {
+      set({ currentZone: 'DECO' })
+    }
+  },
+
+  // 재료 선택 모드 설정
+  setIngredientMode: (mode) => set({ ingredientMode: mode }),
+
+  // 데코존에 플레이트 추가 (최대 6개)
+  addToDecoZone: (plate) => {
+    const { decoPlates } = get()
+    if (decoPlates.length >= 6) {
+      console.warn('❌ 데코존 최대 수용량 초과 (6개)')
+      return false
+    }
+    set((s) => ({
+      decoPlates: [...s.decoPlates, plate],
+    }))
+    return true
+  },
+
+  // 데코존에서 플레이트 제거
+  removeFromDecoZone: (plateId) => {
+    set((s) => ({
+      decoPlates: s.decoPlates.filter((p) => p.id !== plateId),
+    }))
+  },
+
+  // 데코존에서 재료 선택
+  selectDecoIngredient: (ingredient) => {
+    set({ selectedDecoIngredient: ingredient })
+  },
+
+  // 데코 재료 선택 초기화
+  clearDecoSelection: () => {
+    set({ selectedDecoIngredient: null })
+  },
+
+  // 데코 실수 추가 (감점)
+  addDecoMistake: () => {
+    set((s) => ({ decoMistakes: s.decoMistakes + 1 }))
+    console.warn('❌ 데코 실수 +1')
+  },
+
+  // v3: 재료와 레시피에 해당하는 데코 스텝 조회
+  // ingredientId는 deco_ingredient_id 또는 inventory_id일 수 있음
+  // ⚠️ 반드시 recipe_id가 일치하는 스텝만 반환 (다른 레시피 규칙 허용 방지)
+  getDecoStepForIngredient: (ingredientId, recipeId) => {
+    const { decoSteps } = get()
+
+    // 1. deco_ingredient_id로 검색 (DECO_ITEM 타입) - recipe_id 필수
+    const stepByDecoItem = decoSteps.find(
+      (s) => s.deco_ingredient_id === ingredientId && s.recipe_id === recipeId
+    )
+    if (stepByDecoItem) return stepByDecoItem
+
+    // 2. inventory_id로 검색 (SETTING_ITEM 타입) - recipe_id 필수
+    const stepByInventory = decoSteps.find(
+      (s) => s.inventory_id === ingredientId && s.recipe_id === recipeId
+    )
+    if (stepByInventory) return stepByInventory
+
+    // ⚠️ 레시피 무관 검색(fallback) 제거 - 의도치 않은 재료 허용 방지
+    // 해당 레시피에 맞는 스텝이 없으면 null 반환
+    return null
+  },
+
+  // v3: 데코 아이템 적용 (그리드 위치 + 수량 검증)
+  applyDecoItem: (plateId, gridPosition, ingredientId, amount) => {
+    const { decoPlates, decoSteps, decoSettingItems, checkDecoComplete } = get()
+    const plate = decoPlates.find((p) => p.id === plateId)
+
+    if (!plate) {
+      return { success: false, message: '플레이트를 찾을 수 없습니다', isPositionError: false }
+    }
+
+    // 완성된 접시에는 더 이상 재료 투입 불가
+    if (checkDecoComplete(plateId)) {
+      return { success: false, message: '이미 완성된 접시입니다. 서빙해 주세요!', isPositionError: false }
+    }
+
+    // 그리드 위치 유효성 검사 (1~9, 3x3 그리드)
+    if (gridPosition < 1 || gridPosition > 9) {
+      return { success: false, message: '유효하지 않은 그리드 위치입니다', isPositionError: true }
+    }
+
+    // v3: 데코 스텝 찾기 (해당 레시피의 스텝만 - recipe_id 필수 체크)
+    // 1. deco_ingredient_id로 검색 (DECO_ITEM 타입)
+    let decoStep = decoSteps.find(
+      (s) => s.deco_ingredient_id === ingredientId && s.recipe_id === plate.recipeId
+    )
+    // 2. inventory_id로 검색 (SETTING_ITEM 타입)
+    if (!decoStep) {
+      decoStep = decoSteps.find(
+        (s) => s.inventory_id === ingredientId && s.recipe_id === plate.recipeId
+      )
+    }
+    // ⚠️ 주의: 레시피 무관 검색(fallback)은 의도치 않은 재료 허용을 유발하므로 제거
+    // 반드시 해당 레시피의 데코 스텝에서만 검색해야 함
+
+    if (!decoStep) {
+      console.warn(`❌ 데코 스텝 없음: ingredientId=${ingredientId}, recipeId=${plate.recipeId}`)
+      return { success: false, message: '이 레시피에서 사용할 수 없는 재료입니다', isPositionError: false }
+    }
+
+    const step = decoStep
+
+    // v3: 중복 배치 방지: 같은 decoStepId + gridPosition 조합이 이미 존재하는지 확인
+    const alreadyPlaced = plate.appliedDecos.some(
+      (applied) => applied.decoStepId === step.id && applied.gridPosition === gridPosition
+    )
+    if (alreadyPlaced) {
+      return { success: false, message: '이미 배치된 재료입니다', isPositionError: false }
+    }
+
+    // v3: grid_position 단일 값으로 검증 (배열 grid_positions 제거됨)
+    const allowedPosition = step.grid_position
+    if (allowedPosition && allowedPosition !== gridPosition) {
+      return {
+        success: false,
+        message: `이 재료는 ${allowedPosition}번 위치에만 놓을 수 있습니다`,
+        isPositionError: true,
+        allowedPositions: [allowedPosition],
+      }
+    }
+
+    // v3: 수량 검증 (required_amount만 사용)
+    const requiredAmount = step.required_amount ?? 1
+    if (amount !== requiredAmount) {
+      return {
+        success: false,
+        message: `수량이 맞지 않습니다 (필요: ${requiredAmount})`,
+        isPositionError: false,
+      }
+    }
+
+    // 세팅 아이템에서 재료 차감 (있으면)
+    const settingItem = decoSettingItems.find((i) => i.ingredientMasterId === ingredientId)
+    if (settingItem && settingItem.remainingAmount < amount) {
+      return { success: false, message: '세팅된 재료가 부족합니다', isPositionError: false }
+    }
+
+    // v3: 레이어 생성 (decoStepId 사용)
+    const newLayer = {
+      decoStepId: step.id,
+      ingredientName: settingItem?.ingredientName ?? step.display_name ?? ingredientId,
+      imageColor: step.layer_image_color ?? '#9CA3AF',
+      amount,
+      appliedAt: Date.now(),
+    }
+
+    // 그리드 셀 업데이트
+    set((s) => ({
+      decoPlates: s.decoPlates.map((p) => {
+        if (p.id !== plateId) return p
+
+        const updatedCells = [...p.gridCells]
+        const cellIndex = updatedCells.findIndex((c) => c.position === gridPosition)
+
+        if (cellIndex >= 0) {
+          // 기존 셀에 레이어 추가
+          updatedCells[cellIndex] = {
+            ...updatedCells[cellIndex],
+            layers: [...updatedCells[cellIndex].layers, newLayer],
+          }
+        } else {
+          // 새 셀 생성
+          updatedCells.push({
+            position: gridPosition,
+            layers: [newLayer],
+          })
+        }
+
+        // v3: appliedDecos도 업데이트 (decoStepId 사용)
+        const newAppliedDeco = {
+          decoStepId: step.id,
+          sourceType: step.source_type,
+          gridPosition,
+          imageColor: step.layer_image_color ?? '#9CA3AF',
+          amount,
+        }
+
+        return {
+          ...p,
+          gridCells: updatedCells,
+          appliedDecos: [...p.appliedDecos, newAppliedDeco],
+          status: 'DECO_IN_PROGRESS' as const,
+        }
+      }),
+      // 세팅 아이템 차감
+      decoSettingItems: settingItem
+        ? s.decoSettingItems.map((i) =>
+            i.id === settingItem.id
+              ? { ...i, remainingAmount: i.remainingAmount - amount }
+              : i
+          )
+        : s.decoSettingItems,
+    }))
+
+    console.log(`🎨 데코 적용: ${newLayer.ingredientName} x${amount} → 위치 ${gridPosition}`)
+    return { success: true, message: '데코 적용 완료', isPositionError: false }
+  },
+
+  // 합치기 모드 진입
+  enterMergeMode: (sourcePlateId) => {
+    const { decoPlates } = get()
+    const sourcePlate = decoPlates.find((p) => p.id === sourcePlateId)
+
+    if (!sourcePlate || sourcePlate.isMainDish) {
+      console.warn('❌ 사이드 플레이트만 합치기 가능')
+      return
+    }
+
+    set({
+      mergeMode: true,
+      selectedSourcePlateId: sourcePlateId,
+      selectedDecoIngredient: null, // 재료 선택 해제
+    })
+    console.log(`🔀 합치기 모드 진입: ${sourcePlate.bundleName}`)
+  },
+
+  // 합치기 모드 종료
+  exitMergeMode: () => {
+    set({ mergeMode: false, selectedSourcePlateId: null })
+    console.log('🔀 합치기 모드 종료')
+  },
+
+  // 다음 합치기 스텝 조회 (deco_order 순서)
+  getNextMergeStep: (recipeId) => {
+    const { decoSteps, decoPlates } = get()
+    const mainPlate = decoPlates.find((p) => p.recipeId === recipeId && p.isMainDish)
+    if (!mainPlate) return null
+
+    // 해당 레시피의 BUNDLE 타입 스텝들을 deco_order 순으로 정렬
+    const bundleSteps = decoSteps
+      .filter((s) => s.recipe_id === recipeId && s.source_type === 'BUNDLE')
+      .sort((a, b) => a.deco_order - b.deco_order)
+
+    // 아직 적용되지 않은 첫 번째 BUNDLE 스텝 찾기
+    const nextStep = bundleSteps.find(
+      (step) => !mainPlate.appliedDecos.some((applied) => applied.decoStepId === step.id)
+    )
+
+    return nextStep ?? null
+  },
+
+  // 묶음 병합 (동일 주문 내에서만)
+  mergeBundles: (targetPlateId, sourcePlateId) => {
+    const { decoPlates, decoSteps, level, addDecoMistake } = get()
+    const targetPlate = decoPlates.find((p) => p.id === targetPlateId)
+    const sourcePlate = decoPlates.find((p) => p.id === sourcePlateId)
+
+    if (!targetPlate || !sourcePlate) {
+      return { success: false, message: '플레이트를 찾을 수 없습니다' }
+    }
+
+    // 동일 주문 검증
+    if (targetPlate.orderId !== sourcePlate.orderId) {
+      return { success: false, message: '동일 주문의 묶음만 병합할 수 있습니다' }
+    }
+
+    // 메인 디쉬 여부 검증 (메인 디쉬로만 병합 가능)
+    if (!targetPlate.isMainDish) {
+      return { success: false, message: '메인 디쉬로만 병합할 수 있습니다' }
+    }
+
+    // 소스 번들 ID 검증
+    const sourceBundleId = sourcePlate.bundleId
+    if (!sourceBundleId) {
+      return { success: false, message: '소스 플레이트에 묶음 ID가 없습니다' }
+    }
+
+    // 해당 BUNDLE 스텝 찾기
+    const bundleStep = decoSteps.find(
+      (s) => s.recipe_id === targetPlate.recipeId &&
+             s.source_type === 'BUNDLE' &&
+             s.source_bundle_id === sourceBundleId
+    )
+
+    if (!bundleStep) {
+      return { success: false, message: '해당 묶음의 데코 스텝을 찾을 수 없습니다' }
+    }
+
+    // 순서 검증: 이전 BUNDLE 스텝들이 모두 완료되었는지 확인
+    const bundleSteps = decoSteps
+      .filter((s) => s.recipe_id === targetPlate.recipeId && s.source_type === 'BUNDLE')
+      .sort((a, b) => a.deco_order - b.deco_order)
+
+    const currentStepIndex = bundleSteps.findIndex((s) => s.id === bundleStep.id)
+    const previousSteps = bundleSteps.slice(0, currentStepIndex)
+    const allPreviousCompleted = previousSteps.every((step) =>
+      targetPlate.appliedDecos.some((applied) => applied.decoStepId === step.id)
+    )
+
+    if (!allPreviousCompleted) {
+      const nextStep = previousSteps.find(
+        (step) => !targetPlate.appliedDecos.some((applied) => applied.decoStepId === step.id)
+      )
+      const nextStepName = nextStep?.display_name ?? '이전 묶음'
+
+      if (level === 'BEGINNER') {
+        // 초급: 순서 틀리면 거절
+        return {
+          success: false,
+          message: `먼저 "${nextStepName}"을(를) 합쳐주세요`
+        }
+      } else {
+        // 중급/고급: 감점 후 진행
+        addDecoMistake()
+        console.warn(`⚠️ 순서 오류 (감점): "${nextStepName}" 먼저 합쳐야 함`)
+      }
+    }
+
+    // AppliedDeco 생성
+    const newAppliedDeco = {
+      decoStepId: bundleStep.id,
+      sourceType: 'BUNDLE' as const,
+      gridPosition: bundleStep.grid_position,
+      imageColor: bundleStep.layer_image_color,
+      amount: 1,
+    }
+
+    // 병합 실행: 타겟에 레이어 추가 + 소스 제거
+    set((s) => ({
+      decoPlates: s.decoPlates
+        .map((p) => {
+          if (p.id !== targetPlateId) return p
+
+          // 그리드셀에 레이어 추가
+          const updatedGridCells = p.gridCells.map((cell) => {
+            if (cell.position !== bundleStep.grid_position) return cell
+            return {
+              ...cell,
+              layers: [
+                ...cell.layers,
+                {
+                  decoStepId: bundleStep.id,
+                  ingredientName: sourcePlate.bundleName ?? '묶음',
+                  imageColor: bundleStep.layer_image_color,
+                  amount: 1,
+                  appliedAt: Date.now(),
+                },
+              ],
+            }
+          })
+
+          return {
+            ...p,
+            mergedBundles: [...p.mergedBundles, sourceBundleId],
+            appliedDecos: [...p.appliedDecos, newAppliedDeco],
+            gridCells: updatedGridCells,
+          }
+        })
+        .filter((p) => p.id !== sourcePlateId), // 소스 플레이트 제거
+      mergeMode: false,
+      selectedSourcePlateId: null,
+    }))
+
+    console.log(`🔗 묶음 병합 완료: ${sourcePlate.bundleName} → ${targetPlate.bundleName} (위치: ${bundleStep.grid_position})`)
+    return { success: true, message: '묶음 병합 완료' }
+  },
+
+  // 플레이트 서빙
+  servePlate: (plateId) => {
+    const { decoPlates, checkDecoComplete, logAction } = get()
+    const plate = decoPlates.find((p) => p.id === plateId)
+
+    if (!plate) {
+      console.warn('❌ 플레이트를 찾을 수 없습니다')
+      return false
+    }
+
+    // 데코 완료 체크
+    if (!checkDecoComplete(plateId)) {
+      console.warn('❌ 데코가 완료되지 않았습니다')
+      return false
+    }
+
+    const completedOrderId = plate.orderId
+    const completedMenuName = plate.menuName
+
+    // 데코존에서 제거 + completedMenus 증가 + menuQueue 업데이트
+    set((s) => ({
+      decoPlates: s.decoPlates.filter((p) => p.id !== plateId),
+      completedMenus: s.completedMenus + 1,
+      menuQueue: s.menuQueue.map((o) =>
+        o.id === completedOrderId
+          ? { ...o, status: 'COMPLETED' as const, servedAt: new Date() }
+          : o
+      ),
+    }))
+
+    // 액션 로그
+    logAction({
+      actionType: 'SERVE',
+      menuName: completedMenuName,
+      burnerNumber: 0, // 데코존에서 서빙
+      isCorrect: true,
+      message: `${completedMenuName} 데코 완료 후 서빙`,
+    })
+
+    console.log(`🍽️ 플레이트 서빙 완료: ${completedMenuName} (완성 메뉴: ${get().completedMenus}개)`)
+
+    // 3초 후 완료된 주문카드 제거
+    setTimeout(() => {
+      set((s) => ({
+        menuQueue: s.menuQueue.filter((o) => o.id !== completedOrderId),
+      }))
+    }, 3000)
+
+    return true
+  },
+
+  // v3: 데코 완료 체크 (모든 데코 스텝 충족 여부)
+  checkDecoComplete: (plateId) => {
+    const { decoPlates, decoSteps, recipeBundles } = get()
+    const plate = decoPlates.find((p) => p.id === plateId)
+
+    if (!plate) return false
+
+    // v3: 해당 레시피의 모든 데코 스텝 찾기
+    const recipeDecoSteps = decoSteps.filter(
+      (s) => s.recipe_id === plate.recipeId
+    )
+
+    // 데코 스텝이 있으면 반드시 체크 (deco_required 무관)
+    if (recipeDecoSteps.length > 0) {
+      // v3: 모든 데코 스텝이 적용되었는지 확인 (decoStepId 사용)
+      const allStepsApplied = recipeDecoSteps.every((step) =>
+        plate.appliedDecos.some((applied) => applied.decoStepId === step.id)
+      )
+      return allStepsApplied
+    }
+
+    // 데코 스텝이 없을 때만 번들의 deco_required 확인
+    const bundle = recipeBundles.find((b) => b.id === plate.bundleId)
+    if (bundle && bundle.deco_required) {
+      // 데코 필수인데 스텝이 없으면 미완료 (데이터 오류 상황)
+      return false
+    }
+
+    // 데코 스텝도 없고 필수도 아니면 완료
+    return true
+  },
+
+  // 세팅 아이템 추가
+  addSettingItem: (item) => {
+    const id = `setting-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    set((s) => ({
+      decoSettingItems: [
+        ...s.decoSettingItems,
+        {
+          ...item,
+          id,
+          remainingAmount: item.amount,
+        },
+      ],
+    }))
+  },
+
+  // 세팅 아이템 사용
+  useSettingItem: (itemId, amount) => {
+    const { decoSettingItems } = get()
+    const item = decoSettingItems.find((i) => i.id === itemId)
+
+    if (!item || item.remainingAmount < amount) {
+      console.warn('❌ 세팅 아이템이 부족합니다')
+      return false
+    }
+
+    set((s) => ({
+      decoSettingItems: s.decoSettingItems.map((i) =>
+        i.id === itemId
+          ? { ...i, remainingAmount: i.remainingAmount - amount }
+          : i
+      ),
+    }))
+
+    return true
+  },
+
+  // 세팅 아이템 제거 (다시 넣기)
+  removeSettingItem: (itemId) => {
+    const { decoSettingItems, selectedDecoIngredient, clearDecoSelection } = get()
+    const item = decoSettingItems.find((i) => i.id === itemId)
+
+    if (!item) {
+      console.warn('❌ 세팅 아이템을 찾을 수 없습니다')
+      return
+    }
+
+    // 현재 선택된 재료가 이 아이템이면 선택 해제
+    if (selectedDecoIngredient?.id === itemId) {
+      clearDecoSelection()
+    }
+
+    set((s) => ({
+      decoSettingItems: s.decoSettingItems.filter((i) => i.id !== itemId),
+    }))
+  },
+
+  // 묶음 진행 상태 업데이트
+  updateBundleProgress: (orderId, bundleProgress) => {
+    set((s) => {
+      const currentProgress = s.activeBundles.get(orderId) ?? []
+      const existingIndex = currentProgress.findIndex((p) => p.bundleId === bundleProgress.bundleId)
+
+      let updatedProgress: BundleProgress[]
+      if (existingIndex >= 0) {
+        // 기존 항목 업데이트
+        updatedProgress = currentProgress.map((p, i) =>
+          i === existingIndex ? { ...p, ...bundleProgress } : p
+        )
+      } else {
+        // 새 항목 추가
+        updatedProgress = [...currentProgress, bundleProgress]
+      }
+
+      const newActiveBundles = new Map(s.activeBundles)
+      newActiveBundles.set(orderId, updatedProgress)
+
+      return { activeBundles: newActiveBundles }
+    })
+  },
 }))
 
 export function selectRandomMenu(
@@ -1453,4 +2330,21 @@ export function selectRandomMenu(
   const unused = recipes.filter((r) => !usedMenus.has(r.menu_name))
   const pool = unused.length > 0 ? unused : recipes
   return pool[Math.floor(Math.random() * pool.length)]
+}
+
+
+if (typeof window !== 'undefined') {
+  (window as any).__gameStore = useGameStore;
+}
+if (typeof window !== 'undefined') {
+  (window as any).__gameStore = useGameStore;
+  (window as any).checkStore = () => {
+    const s = useGameStore.getState();
+    alert(JSON.stringify({
+      kitchenGrid: s.kitchenGrid ? `${s.kitchenGrid.grid_cols}x${s.kitchenGrid.grid_rows}` : 'null',
+      equipment: s.kitchenEquipment?.length ?? 0,
+      woks: s.woks?.map(w => w.equipmentKey || w.burnerNumber),
+      storageCacheKeys: Object.keys(s.storageCache).length,
+    }, null, 2));
+  };
 }

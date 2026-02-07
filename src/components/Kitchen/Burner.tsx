@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '../../stores/gameStore'
 import type { WokState } from '../../types/database.types'
@@ -21,37 +22,49 @@ export default function Burner({ burnerNumber }: BurnerProps) {
   const { woks, toggleBurner, serve, validateAndAdvanceAction, washWok, emptyWok, startStirFry, stopStirFry, setHeatLevel } = useGameStore()
   const wok = woks.find((w) => w.burnerNumber === burnerNumber)
   const [showRadialMenu, setShowRadialMenu] = useState(false)
+  const [wokPosition, setWokPosition] = useState<{ x: number; y: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const wokElementRef = useRef<HTMLDivElement>(null)
   const { playSound } = useSound()
 
-  if (!wok) return null
-
-  // 외부 클릭 감지
+  // 레이디얼 메뉴가 열릴 때 위치 업데이트
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setShowRadialMenu(false)
-      }
-    }
-    
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setShowRadialMenu(false)
-      }
-    }
-
     if (showRadialMenu) {
-      document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('keydown', handleEscape)
-    }
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscape)
+      // 즉시 위치 계산
+      if (wokElementRef.current) {
+        const rect = wokElementRef.current.getBoundingClientRect()
+        const pos = {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2
+        }
+        setWokPosition(pos)
+        console.log('📍 레이디얼 메뉴 열림, 웍 위치:', pos)
+      }
     }
   }, [showRadialMenu])
 
+
+  // ESC 키로 메뉴 닫기
+  useEffect(() => {
+    if (!showRadialMenu) return
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        console.log('⌨️ ESC 키 - 메뉴 닫기')
+        setShowRadialMenu(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [showRadialMenu])
+
+  // Early return은 모든 훅 선언 후에!
+  if (!wok) return null
+
   const handleAction = (actionType: string) => {
+    console.log('🔥 handleAction 호출됨:', actionType, 'burnerNumber:', burnerNumber)
+
     // 볶기 액션인 경우 온도 체크
     if (actionType === 'STIR_FRY') {
       playSound('stir')
@@ -65,16 +78,18 @@ export default function Burner({ burnerNumber }: BurnerProps) {
 
       // 볶기 액션 검증
       const result = validateAndAdvanceAction(burnerNumber, actionType)
+      console.log('🍳 볶기 액션 결과:', result, 'currentStep:', wok.currentStep)
 
       // 볶기 애니메이션 1초 후 종료
       setTimeout(() => {
         stopStirFry(burnerNumber)
       }, 1000)
 
-      // 레시피 완료 체크
-      const recipe = useGameStore.getState().getRecipeByMenuName(wok.currentMenu!)
-      const totalSteps = recipe?.steps?.length ?? 0
-      const isComplete = wok.currentStep + 1 >= totalSteps
+      // 레시피 완료 체크 (v3: recipe_bundles에서 스텝 추출)
+      const { getRecipeByMenuName, getRecipeSteps } = useGameStore.getState()
+      const recipe = getRecipeByMenuName(wok.currentMenu!)
+      const sortedSteps = getRecipeSteps(recipe, wok.currentBundleId)
+      const isComplete = wok.currentStep + 1 >= sortedSteps.length
 
       if (result.burned) {
         playSound('error')
@@ -92,11 +107,13 @@ export default function Burner({ burnerNumber }: BurnerProps) {
       }
 
       const result = validateAndAdvanceAction(burnerNumber, actionType)
+      console.log('💧 액션 결과:', actionType, result, 'currentStep:', wok.currentStep)
 
-      // 레시피 완료 체크
-      const recipe = useGameStore.getState().getRecipeByMenuName(wok.currentMenu!)
-      const totalSteps = recipe?.steps?.length ?? 0
-      const isComplete = wok.currentStep + 1 >= totalSteps
+      // 레시피 완료 체크 (v3: recipe_bundles에서 스텝 추출)
+      const { getRecipeByMenuName: getRecipe, getRecipeSteps: getSteps } = useGameStore.getState()
+      const recipe = getRecipe(wok.currentMenu!)
+      const sortedSteps2 = getSteps(recipe, wok.currentBundleId)
+      const isComplete = wok.currentStep + 1 >= sortedSteps2.length
 
       if (result.burned) {
         playSound('error')
@@ -106,6 +123,9 @@ export default function Burner({ burnerNumber }: BurnerProps) {
         playSound('success')
       }
     }
+
+    // 액션 후 레이디얼 메뉴 닫기
+    setShowRadialMenu(false)
 
     // 액션 후 메뉴 자동 닫기
     setShowRadialMenu(false)
@@ -121,20 +141,6 @@ export default function Burner({ burnerNumber }: BurnerProps) {
 
   return (
     <>
-      {/* Radial Menu 활성화 시 배경 오버레이 (데스크톱 전용) */}
-      <AnimatePresence>
-        {showRadialMenu && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="hidden lg:block fixed inset-0 bg-black/50 z-[100]"
-            onClick={() => setShowRadialMenu(false)}
-          />
-        )}
-      </AnimatePresence>
-      
       <div ref={containerRef} className="flex flex-col items-center gap-2 relative pt-3 pb-0 lg:pb-2 min-h-[240px] lg:min-h-[320px]">
       {/* 온도 게이지 (컴팩트) */}
       <div className="w-full max-w-[160px]">
@@ -188,22 +194,27 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           transition={{ duration: 0.8, ease: 'easeInOut' }}
           className="absolute top-0 z-10 flex flex-col items-center cursor-pointer"
           onClick={(e) => {
+            console.log('🍳 웍 클릭됨!', {
+              currentMenu: wok.currentMenu,
+              state: wok.state,
+              windowWidth: window.innerWidth,
+              showRadialMenu
+            })
             // CLEAN, WET, OVERHEATING 상태에서 메뉴가 있으면 클릭 가능
             const clickableStates: WokState[] = ['CLEAN', 'WET', 'OVERHEATING']
             if (wok.currentMenu && clickableStates.includes(wok.state)) {
-              // 데스크톱에서만 radial menu 표시 + 이벤트 전파 중단
-              if (window.innerWidth >= 1024) {
-                e.stopPropagation()
-                setShowRadialMenu(!showRadialMenu)
-              }
-              // 모바일에서는 이벤트가 부모로 전파되어 하단바 표시됨
+              e.stopPropagation()
+              setShowRadialMenu(!showRadialMenu)
+              console.log('✅ 레이디얼 메뉴 토글:', !showRadialMenu)
             }
           }}
         >
-        <div className={`w-[130px] h-[130px] rounded-full border-4 flex items-center justify-center shadow-xl transition relative ${
+        <div
+          ref={wokElementRef}
+          className={`w-[130px] h-[130px] rounded-full border-4 flex items-center justify-center shadow-xl transition relative ${
           showRadialMenu ? 'ring-4 ring-blue-400 ring-opacity-50' : ''
         } ${
-          wok.state === 'BURNED' 
+          wok.state === 'BURNED'
             ? 'border-red-900 bg-gradient-to-br from-black via-gray-900 to-black animate-pulse shadow-[0_0_40px_rgba(0,0,0,0.9)]'
             : wok.state === 'OVERHEATING'
               ? 'border-orange-600 bg-gradient-to-br from-orange-400 via-red-500 to-orange-600 animate-pulse shadow-[0_0_30px_rgba(234,88,12,0.8)]'
@@ -329,136 +340,6 @@ export default function Burner({ burnerNumber }: BurnerProps) {
             )}
           </AnimatePresence>
           
-          {/* Radial Menu - 웍 클릭 시 나타남 (데스크톱 전용) */}
-          <AnimatePresence>
-            {showRadialMenu && wok.currentMenu && (
-              <div className="hidden lg:block">
-                {/* 북쪽 (상단): 볶기 */}
-                <motion.button
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0 }}
-                  transition={{ duration: 0.15 }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleAction('STIR_FRY')
-                  }}
-                  disabled={wok.temperature < WOK_TEMP.MIN_STIR_FRY}
-                  className={`absolute w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-2xl z-[101] ${
-                    wok.temperature < WOK_TEMP.MIN_STIR_FRY
-                      ? 'bg-gray-300 cursor-not-allowed opacity-50'
-                      : 'bg-gradient-to-br from-orange-400 to-red-500 hover:from-orange-500 hover:to-red-600'
-                  }`}
-                  style={{ top: '-70px', left: 'calc(50% - 20px)', transform: 'translateX(-50%)' }}
-                  title="볶기"
-                >
-                  🍳
-                </motion.button>
-
-                {/* 서쪽 (좌측): 물넣기 */}
-                <motion.button
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0 }}
-                  transition={{ duration: 0.15 }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleAction('ADD_WATER')
-                  }}
-                  className="absolute w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 hover:from-blue-500 hover:to-cyan-600 shadow-xl flex items-center justify-center text-2xl z-[101]"
-                  style={{ left: '-70px', top: 'calc(50% - 25px)', transform: 'translateY(-50%)' }}
-                  title="물넣기"
-                >
-                  💧
-                </motion.button>
-
-                {/* 동쪽 (우측): 뒤집기 */}
-                <motion.button
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0 }}
-                  transition={{ duration: 0.15 }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleAction('FLIP')
-                  }}
-                  className="absolute w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 hover:from-purple-500 hover:to-pink-600 shadow-xl flex items-center justify-center text-2xl z-[101]"
-                  style={{ right: '-70px', top: 'calc(50% - 25px)', transform: 'translateY(-50%)' }}
-                  title="뒤집기"
-                >
-                  🔄
-                </motion.button>
-
-                {/* 남쪽 (하단): 불 세기 (3개 버튼을 가로로 배치) */}
-                {wok.isOn && (
-                  <div className="absolute flex gap-1.5 z-[101]" style={{ bottom: '-70px', left: '50%', transform: 'translateX(-50%)' }}>
-                    {/* 약불 */}
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0 }}
-                      transition={{ duration: 0.15 }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setHeatLevel(burnerNumber, 1)
-                        setShowRadialMenu(false)
-                      }}
-                      className={`w-10 h-10 rounded-full shadow-xl flex items-center justify-center text-sm lg:text-xs font-bold ${
-                        wok.heatLevel === 1
-                          ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white ring-2 ring-yellow-300'
-                          : 'bg-white text-gray-600 hover:bg-gray-100'
-                      }`}
-                      title="약불"
-                    >
-                      약
-                    </motion.button>
-
-                    {/* 중불 */}
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0 }}
-                      transition={{ duration: 0.15 }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setHeatLevel(burnerNumber, 2)
-                        setShowRadialMenu(false)
-                      }}
-                      className={`w-10 h-10 rounded-full shadow-xl flex items-center justify-center text-sm lg:text-xs font-bold ${
-                        wok.heatLevel === 2
-                          ? 'bg-gradient-to-br from-orange-400 to-red-500 text-white ring-2 ring-orange-300'
-                          : 'bg-white text-gray-600 hover:bg-gray-100'
-                      }`}
-                      title="중불"
-                    >
-                      중
-                    </motion.button>
-
-                    {/* 강불 */}
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0 }}
-                      transition={{ duration: 0.15 }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setHeatLevel(burnerNumber, 3)
-                        setShowRadialMenu(false)
-                      }}
-                      className={`w-10 h-10 rounded-full shadow-xl flex items-center justify-center text-sm lg:text-xs font-bold ${
-                        wok.heatLevel === 3
-                          ? 'bg-gradient-to-br from-red-500 to-red-700 text-white ring-2 ring-red-300'
-                          : 'bg-white text-gray-600 hover:bg-gray-100'
-                      }`}
-                      title="강불"
-                    >
-                      강
-                    </motion.button>
-                  </div>
-                )}
-              </div>
-            )}
-          </AnimatePresence>
         </div>
         <div className={`text-sm lg:text-[10px] mt-1 font-bold px-2 lg:px-1.5 py-1 lg:py-0.5 rounded ${
           wok.state === 'BURNED' ? 'text-white bg-red-600/90' : 
@@ -472,6 +353,8 @@ export default function Burner({ burnerNumber }: BurnerProps) {
            '✨'}
         </div>
       </motion.div>
+
+      {/* Radial Menu는 Portal로 body에 렌더링 */}
 
       {/* 화구 (간소화) */}
       <div
@@ -568,16 +451,17 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           
           {wok.currentMenu && (
             <div className="flex flex-col gap-1 items-center">
-              {/* 진행 상황 (간소화) */}
+              {/* 진행 상황 (간소화) - bundleId 필터링 적용 */}
               <div className="text-sm lg:text-[9px] text-gray-700 font-bold px-2 py-1 lg:py-0.5 bg-white/80 rounded border border-gray-300">
                 {(() => {
                   const recipe = useGameStore.getState().getRecipeByMenuName(wok.currentMenu)
-                  const totalSteps = recipe?.steps?.length ?? 0
-                  const isComplete = wok.currentStep >= totalSteps
-                  return isComplete ? '✅ 완료' : `${wok.currentStep + 1}/${totalSteps}`
+                  // v3: recipe_bundles에서 스텝 추출
+                  const sortedSteps = useGameStore.getState().getRecipeSteps(recipe, wok.currentBundleId)
+                  const isComplete = wok.currentStep >= sortedSteps.length
+                  return isComplete ? '✅ 완료' : `${wok.currentStep + 1}/${sortedSteps.length}`
                 })()}
               </div>
-              
+
               {/* 서빙 & 비우기 버튼 */}
               <div className="flex gap-1">
                 <button
@@ -597,9 +481,10 @@ export default function Burner({ burnerNumber }: BurnerProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    const recipe = useGameStore.getState().getRecipeByMenuName(wok.currentMenu!)
-                    const totalSteps = recipe?.steps?.length ?? 0
-                    const isComplete = wok.currentStep >= totalSteps
+                    const { getRecipeByMenuName, getRecipeSteps } = useGameStore.getState()
+                    const recipe = getRecipeByMenuName(wok.currentMenu!)
+                    const sortedSteps = getRecipeSteps(recipe, wok.currentBundleId)
+                    const isComplete = wok.currentStep >= sortedSteps.length
                     if (isComplete) {
                       playSound('serve')
                     }
@@ -607,9 +492,10 @@ export default function Burner({ burnerNumber }: BurnerProps) {
                   }}
                   className={`px-2 py-1 rounded text-sm lg:text-xs font-bold transition-all shadow-sm ${
                     (() => {
-                      const recipe = useGameStore.getState().getRecipeByMenuName(wok.currentMenu!)
-                      const totalSteps = recipe?.steps?.length ?? 0
-                      const isComplete = wok.currentStep >= totalSteps
+                      const { getRecipeByMenuName, getRecipeSteps } = useGameStore.getState()
+                      const recipe = getRecipeByMenuName(wok.currentMenu!)
+                      const sortedSteps = getRecipeSteps(recipe, wok.currentBundleId)
+                      const isComplete = wok.currentStep >= sortedSteps.length
                       return isComplete
                         ? 'bg-gradient-to-r from-green-400 to-emerald-500 border border-green-500 text-white hover:from-green-500 hover:to-emerald-600'
                         : 'bg-gray-300 border border-gray-400 text-gray-500 opacity-50 cursor-not-allowed'
@@ -625,6 +511,146 @@ export default function Burner({ burnerNumber }: BurnerProps) {
       )}
       </div>
     </div>
+
+    {/* Radial Menu - Portal로 document.body에 직접 렌더링 (transform 컨테이너 탈출) */}
+    {showRadialMenu && wok.currentMenu && createPortal(
+      <div id="radial-menu-portal">
+        {/* 배경 오버레이 */}
+        <div
+          className="fixed inset-0 bg-black/50"
+          style={{ zIndex: 9998 }}
+          onClick={() => {
+            console.log('🔲 오버레이 클릭!')
+            setShowRadialMenu(false)
+          }}
+        />
+
+        {/* 버튼 컨테이너 */}
+        <div
+          className="fixed"
+          style={{
+            zIndex: 9999,
+            left: wokPosition?.x ?? window.innerWidth / 2,
+            top: wokPosition?.y ?? window.innerHeight / 2,
+            transform: 'translate(-50%, -50%)',
+            width: '250px',
+            height: '250px',
+            pointerEvents: 'none',
+          }}
+        >
+          {/* 북쪽 (상단): 볶기 */}
+          <div
+            onClick={() => {
+              console.log('🍳 볶기 버튼 클릭!')
+              handleAction('STIR_FRY')
+            }}
+            className={`absolute w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-2xl cursor-pointer select-none transition-transform hover:scale-110 active:scale-95 ${
+              wok.temperature < WOK_TEMP.MIN_STIR_FRY
+                ? 'bg-gray-300 cursor-not-allowed opacity-50'
+                : 'bg-gradient-to-br from-orange-400 to-red-500'
+            }`}
+            style={{ left: '97px', top: '25px', pointerEvents: 'auto' }}
+          >
+            🍳
+          </div>
+
+          {/* 서쪽 (좌측): 물넣기 */}
+          <div
+            onClick={() => {
+              console.log('💧 물넣기 버튼 클릭!')
+              handleAction('ADD_WATER')
+            }}
+            className="absolute w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 shadow-2xl flex items-center justify-center text-2xl cursor-pointer select-none transition-transform hover:scale-110 active:scale-95"
+            style={{ left: '25px', top: '97px', pointerEvents: 'auto' }}
+          >
+            💧
+          </div>
+
+          {/* 동쪽 (우측): 뒤집기 */}
+          <div
+            onClick={() => {
+              console.log('🔄 뒤집기 버튼 클릭!')
+              handleAction('FLIP')
+            }}
+            className="absolute w-14 h-14 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 shadow-2xl flex items-center justify-center text-2xl cursor-pointer select-none transition-transform hover:scale-110 active:scale-95"
+            style={{ left: '169px', top: '97px', pointerEvents: 'auto' }}
+          >
+            🔄
+          </div>
+
+          {/* 북동쪽 (우상단): 쓰레기통 (버리기) */}
+          <div
+            onClick={() => {
+              console.log('🗑️ 버리기 버튼 클릭!')
+              if (confirm(`${wok.currentMenu}을(를) 버리시겠습니까?`)) {
+                playSound('remove')
+                emptyWok(burnerNumber)
+                setShowRadialMenu(false)
+              }
+            }}
+            className="absolute w-14 h-14 rounded-full bg-gradient-to-br from-red-400 to-red-600 shadow-2xl flex items-center justify-center text-2xl cursor-pointer select-none transition-transform hover:scale-110 active:scale-95"
+            style={{ left: '175px', top: '45px', pointerEvents: 'auto' }}
+          >
+            🗑️
+          </div>
+
+          {/* 남쪽 (하단): 불 세기 */}
+          {wok.isOn && (
+            <div
+              className="absolute flex gap-2"
+              style={{ left: '73px', top: '175px' }}
+            >
+              <div
+                onClick={() => {
+                  console.log('🔥 약불 클릭!')
+                  setHeatLevel(burnerNumber, 1)
+                  setShowRadialMenu(false)
+                }}
+                className={`w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-sm font-bold cursor-pointer select-none transition-transform hover:scale-110 active:scale-95 ${
+                  wok.heatLevel === 1
+                    ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white ring-2 ring-yellow-300'
+                    : 'bg-white text-gray-600'
+                }`}
+                style={{ pointerEvents: 'auto' }}
+              >
+                약
+              </div>
+              <div
+                onClick={() => {
+                  console.log('🔥 중불 클릭!')
+                  setHeatLevel(burnerNumber, 2)
+                  setShowRadialMenu(false)
+                }}
+                className={`w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-sm font-bold cursor-pointer select-none transition-transform hover:scale-110 active:scale-95 ${
+                  wok.heatLevel === 2
+                    ? 'bg-gradient-to-br from-orange-400 to-red-500 text-white ring-2 ring-orange-300'
+                    : 'bg-white text-gray-600'
+                }`}
+                style={{ pointerEvents: 'auto' }}
+              >
+                중
+              </div>
+              <div
+                onClick={() => {
+                  console.log('🔥 강불 클릭!')
+                  setHeatLevel(burnerNumber, 3)
+                  setShowRadialMenu(false)
+                }}
+                className={`w-12 h-12 rounded-full shadow-xl flex items-center justify-center text-sm font-bold cursor-pointer select-none transition-transform hover:scale-110 active:scale-95 ${
+                  wok.heatLevel === 3
+                    ? 'bg-gradient-to-br from-red-500 to-red-700 text-white ring-2 ring-red-300'
+                    : 'bg-white text-gray-600'
+                }`}
+                style={{ pointerEvents: 'auto' }}
+              >
+                강
+              </div>
+            </div>
+          )}
+        </div>
+      </div>,
+      document.body
+    )}
     </>
   )
 }

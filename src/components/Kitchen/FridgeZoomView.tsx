@@ -56,12 +56,12 @@ export default function FridgeZoomView({ onSelectIngredient, onSelectMultiple }:
       gridCols: cachedData.gridCols,
       ingredients: cachedData.ingredients.map((ing: IngredientInventory) => ({
         id: ing.id,
-        name: (ing.ingredient_master as any)?.ingredient_name ?? ing.sku_full,
+        name: (ing.ingredient_master as any)?.ingredient_name ?? ing.sku_full ?? ing.id,
         amount: ing.standard_amount,
         unit: ing.standard_unit,
         gridPositions: ing.grid_positions ?? '1',
         gridSize: ing.grid_size ?? '1x1',
-        sku: ing.sku_full,
+        sku: ing.sku_full ?? ing.id, // v3: sku_full이 없으면 id 사용
         raw: ing,
       })),
     })
