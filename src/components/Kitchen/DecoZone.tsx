@@ -68,6 +68,9 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
   // 수량 입력 팝업 상태
   const [amountPopup, setAmountPopup] = useState<AmountPopupState | null>(null)
 
+  // 토스트 메시지 상태 (순서 오류 등 피드백용)
+  const [toast, setToast] = useState<string | null>(null)
+
   // 과열 경고: 신입 난이도에서 데코존에 있을 때 웍 과열 알림
   const overheatingWoks = woks.filter((w) => w.state === 'OVERHEATING' || w.temperature >= 360)
 
@@ -86,6 +89,12 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
   const showCellFlash = useCallback((plateId: string, position: number, type: 'success' | 'error') => {
     setCellFlash({ plateId, position, type })
     setTimeout(() => setCellFlash(null), 300)
+  }, [])
+
+  // 토스트 메시지 표시 (2초 후 자동 제거)
+  const showToast = useCallback((message: string) => {
+    setToast(message)
+    setTimeout(() => setToast(null), 2000)
   }, [])
 
   // v3: 상시배치 재료 클릭 (DecoIngredient)
@@ -182,9 +191,17 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
       // 실패 → 빨간 플래시
       playSound('error')
       showCellFlash(plateId, position, 'error')
+
+      // 위치 오류 시 실수 카운트 (gameStore에서 이미 추가하지 않은 경우)
       if (result.isPositionError) {
         addDecoMistake()
       }
+
+      // 순서 오류 시 토스트 메시지 표시 (BEGINNER에서만 - 중급 이상은 gameStore에서 감점 처리됨)
+      if (result.isOrderError) {
+        showToast(result.message)
+      }
+
       console.warn(result.message)
     }
   }
@@ -520,6 +537,13 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
           onCancel={handleAmountCancel}
         />
       )}
+
+      {/* 토스트 메시지 (순서 오류 등 피드백) */}
+      {toast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl bg-orange-500 text-white shadow-2xl z-[60] font-bold animate-bounce">
+          ⚠️ {toast}
+        </div>
+      )}
     </div>
   )
 }
@@ -713,8 +737,8 @@ function PlateSlot({
         </button>
       )}
 
-      {/* 서빙 버튼 (완성 시, 합치기 모드 아닐 때) */}
-      {isComplete && !mergeMode && (
+      {/* 서빙 버튼 (완성 시, 합치기 모드 아닐 때, 메인 접시만) */}
+      {isComplete && !mergeMode && plate.isMainDish && (
         <button
           type="button"
           onClick={() => {

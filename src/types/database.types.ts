@@ -498,12 +498,18 @@ export interface DecoStep {
   created_at?: string
 }
 
+// v3: 재료 특수 액션 (전처리 작업)
 export interface IngredientSpecialAction {
   id: string
-  ingredient_master_id: string
-  action_type: 'SLICE' | 'DICE' | 'TORCH' | 'CHILL'
-  produces_sku: string
-  time_seconds: number
+  recipe_id: string                    // FK → recipes
+  ingredient_master_id: string         // FK → ingredients_master
+  action_name: string                  // 한글 액션명 (예: "해동하기")
+  action_name_en?: string              // 영문 액션명 (예: "Defrost")
+  action_type: 'MICROWAVE' | 'DEFROST' | 'MARINATE' | 'SOAK' | 'TORCH' | 'CUSTOM'
+  action_params: Record<string, unknown>  // { duration_seconds, power_level, ... }
+  instruction: string                  // 사용자에게 표시할 안내 텍스트
+  is_prerequisite: boolean             // true면 재료 투입 전 필수 수행
+  display_order: number                // 동일 재료에 여러 액션 시 순서
   created_at?: string
 }
 

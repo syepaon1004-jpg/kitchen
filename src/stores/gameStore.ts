@@ -166,6 +166,9 @@ interface GameStore {
   decoSteps: DecoStep[] // v3: decoRules → decoSteps
   ingredientSpecialActions: IngredientSpecialAction[]
 
+  // 완료된 특수 액션 ID 추적 (세션 동안 유지)
+  completedSpecialActionIds: string[]
+
   setStore: (store: Store | null) => void
   setUser: (user: User | null) => void
   setCurrentUser: (user: User | null) => void
@@ -223,7 +226,7 @@ interface GameStore {
     gridPosition: number,
     ingredientId: string,
     amount: number
-  ) => { success: boolean; message: string; isPositionError?: boolean; allowedPositions?: number[] }
+  ) => { success: boolean; message: string; isPositionError?: boolean; isOrderError?: boolean; allowedPositions?: number[] }
   mergeBundles: (targetPlateId: string, sourcePlateId: string) => { success: boolean; message: string }
   enterMergeMode: (sourcePlateId: string) => void
   exitMergeMode: () => void
@@ -233,6 +236,12 @@ interface GameStore {
   addDecoMistake: () => void
   // v3: getDecoRuleForIngredient → getDecoStepForIngredient
   getDecoStepForIngredient: (ingredientId: string, recipeId: string) => DecoStep | null
+
+  // 특수 액션 관리
+  completeSpecialAction: (actionId: string) => void
+  isSpecialActionCompleted: (actionId: string) => boolean
+  getRequiredSpecialActions: (ingredientMasterIds: string[], recipeId: string) => IngredientSpecialAction[]
+  getPendingPrerequisites: (ingredientMasterIds: string[], recipeId: string) => IngredientSpecialAction[]
 
   // 세팅존 액션
   addSettingItem: (item: Omit<DecoSettingItem, 'id' | 'remainingAmount'>) => void
@@ -316,6 +325,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   decoIngredients: [], // v3: decoDefaultItems → decoIngredients
   decoSteps: [], // v3: decoRules → decoSteps
   ingredientSpecialActions: [],
+
+  // 완료된 특수 액션 ID 초기값
+  completedSpecialActionIds: [],
 
   // 재료 선택 콜백 (StorageEquipment에서 사용)
   onIngredientSelected: null,
@@ -402,6 +414,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       decoIngredients: [], // v3: decoDefaultItems → decoIngredients
       decoSteps: [], // v3: decoRules → decoSteps
       ingredientSpecialActions: [],
+      completedSpecialActionIds: [],
     })
   },
 
@@ -951,7 +964,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   logAction: (action) => {
-    const { elapsedSeconds, currentSession } = get()
+    const { elapsedSeconds } = get()
     const log: ActionLog = {
       timestamp: new Date(),
       elapsedSeconds,
@@ -959,27 +972,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     set((s) => ({ actionLogs: [...s.actionLogs, log] }))
 
-    // DB 로깅 (실패해도 게임 진행에 영향 없음)
-    if (currentSession?.id) {
-      supabase.from('game_action_logs').insert({
-        session_id: currentSession.id,
-        timestamp: log.timestamp.toISOString(),
-        elapsed_time_seconds: log.elapsedSeconds,
-        action_type: log.actionType,
-        menu_name: log.menuName ?? null,
-        burner_number: log.burnerNumber ?? null,
-        ingredient_id: log.ingredientId ?? null, // v3: ingredient_sku → ingredient_id
-        amount_input: log.amountInput ?? null,
-        expected_amount: log.expectedAmount ?? null,
-        is_correct: log.isCorrect,
-        timing_correct: log.timingCorrect ?? null,
-        action_detail: log.message,
-      }).then(({ error }) => {
-        if (error) {
-          console.warn('⚠️ game_action_logs 저장 실패 (게임은 계속됨):', error.message)
-        }
-      })
-    }
+    // DB 로깅은 스킵 (v3 스키마 호환성 문제)
+    // 로컬 actionLogs 배열에만 저장됨
   },
 
   recordBurnerUsage: () => {
@@ -1863,9 +1857,48 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return null
   },
 
-  // v3: 데코 아이템 적용 (그리드 위치 + 수량 검증)
+  // 특수 액션 완료 처리
+  completeSpecialAction: (actionId) => {
+    set((s) => ({
+      completedSpecialActionIds: [...s.completedSpecialActionIds, actionId]
+    }))
+    console.log(`✅ 특수 액션 완료: ${actionId}`)
+  },
+
+  // 특수 액션 완료 여부 확인
+  isSpecialActionCompleted: (actionId) => {
+    return get().completedSpecialActionIds.includes(actionId)
+  },
+
+  // 특정 재료들에 대한 모든 특수 액션 조회
+  getRequiredSpecialActions: (ingredientMasterIds, recipeId) => {
+    const { ingredientSpecialActions } = get()
+    return ingredientSpecialActions
+      .filter(
+        (action) =>
+          action.recipe_id === recipeId &&
+          ingredientMasterIds.includes(action.ingredient_master_id)
+      )
+      .sort((a, b) => a.display_order - b.display_order)
+  },
+
+  // 아직 완료되지 않은 필수 전처리 액션 조회
+  getPendingPrerequisites: (ingredientMasterIds, recipeId) => {
+    const { ingredientSpecialActions, completedSpecialActionIds } = get()
+    return ingredientSpecialActions
+      .filter(
+        (action) =>
+          action.recipe_id === recipeId &&
+          ingredientMasterIds.includes(action.ingredient_master_id) &&
+          action.is_prerequisite &&
+          !completedSpecialActionIds.includes(action.id)
+      )
+      .sort((a, b) => a.display_order - b.display_order)
+  },
+
+  // v3: 데코 아이템 적용 (그리드 위치 + 수량 + deco_order 검증)
   applyDecoItem: (plateId, gridPosition, ingredientId, amount) => {
-    const { decoPlates, decoSteps, decoSettingItems, checkDecoComplete } = get()
+    const { decoPlates, decoSteps, decoSettingItems, checkDecoComplete, level, addDecoMistake } = get()
     const plate = decoPlates.find((p) => p.id === plateId)
 
     if (!plate) {
@@ -1902,6 +1935,44 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     const step = decoStep
+
+    // v3: deco_order 순서 검증 (BUNDLE 외 일반 데코 아이템도 순서 강제)
+    // BUNDLE 타입은 mergeBundles에서 별도 처리하므로 여기서는 DECO_ITEM, SETTING_ITEM만 검증
+    if (step.source_type !== 'BUNDLE') {
+      // 해당 레시피의 모든 non-BUNDLE 데코 스텝을 deco_order 순으로 정렬
+      const orderedSteps = decoSteps
+        .filter((s) => s.recipe_id === plate.recipeId && s.source_type !== 'BUNDLE')
+        .sort((a, b) => a.deco_order - b.deco_order)
+
+      const currentStepIndex = orderedSteps.findIndex((s) => s.id === step.id)
+
+      if (currentStepIndex > 0) {
+        // 이전 스텝들이 모두 완료되었는지 확인
+        const previousSteps = orderedSteps.slice(0, currentStepIndex)
+        const incompleteSteps = previousSteps.filter(
+          (prevStep) => !plate.appliedDecos.some((applied) => applied.decoStepId === prevStep.id)
+        )
+
+        if (incompleteSteps.length > 0) {
+          const nextRequiredStep = incompleteSteps[0]
+          const nextStepName = nextRequiredStep.display_name ?? '이전 재료'
+
+          if (level === 'BEGINNER') {
+            // 신입: 순서 틀리면 거절
+            return {
+              success: false,
+              message: `먼저 "${nextStepName}"을(를) 배치해야 합니다`,
+              isPositionError: false,
+              isOrderError: true,
+            }
+          } else {
+            // 중급 이상: 순서 틀려도 진행하되 감점
+            console.warn(`⚠️ 데코 순서 틀림: ${nextStepName} 먼저 필요 (감점 적용)`)
+            addDecoMistake()
+          }
+        }
+      }
+    }
 
     // v3: 중복 배치 방지: 같은 decoStepId + gridPosition 조합이 이미 존재하는지 확인
     const alreadyPlaced = plate.appliedDecos.some(

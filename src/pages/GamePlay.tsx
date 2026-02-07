@@ -18,6 +18,8 @@ import DecoZone from '../components/Kitchen/DecoZone'
 import IngredientModeSelector from '../components/Kitchen/IngredientModeSelector'
 import SettingAmountPopup from '../components/Kitchen/SettingAmountPopup'
 import PlateSelectPopup from '../components/Kitchen/PlateSelectPopup'
+import SpecialActionPopup from '../components/Kitchen/SpecialActionPopup'
+import type { IngredientSpecialAction } from '../types/database.types'
 
 type AmountPopupState =
   | null
@@ -84,6 +86,34 @@ type PlateSelectPopupState = {
   isMainDish: boolean
 } | null
 
+// 특수 액션 팝업 상태 (전자레인지, 해동, 토치 등)
+// 단일 재료 투입 시 사용
+type SpecialActionPopupState = {
+  action: IngredientSpecialAction
+  ingredientName: string
+  // 완료 후 실행할 원본 투입 작업 정보
+  pendingAction: {
+    burnerNumber: number
+    recipeIngredientId: string
+    amount: number
+  }
+} | null
+
+// 다중 재료 선택 시 특수 액션 시퀀스 상태
+type SpecialActionSequenceState = {
+  actions: IngredientSpecialAction[]
+  currentIndex: number
+  ingredients: Array<{
+    id: string
+    name: string
+    sku: string
+    amount: number
+    unit: string
+    raw: any
+    ingredientMasterId?: string
+  }>
+} | null
+
 export default function GamePlay() {
   const navigate = useNavigate()
   const {
@@ -108,6 +138,11 @@ export default function GamePlay() {
     setZone,
     openDecoZone,
     decoPlates,
+    ingredientSpecialActions,
+    getRecipeByMenuName,
+    getRequiredSpecialActions,
+    getPendingPrerequisites,
+    completeSpecialAction,
   } = useGameStore()
 
   const [selectedBurner, setSelectedBurner] = useState<number | null>(null)
@@ -116,6 +151,8 @@ export default function GamePlay() {
   const [modeSelectorPopup, setModeSelectorPopup] = useState<ModeSelectorState>(null)
   const [settingPopup, setSettingPopup] = useState<SettingPopupState>(null)
   const [plateSelectPopup, setPlateSelectPopup] = useState<PlateSelectPopupState>(null)
+  const [specialActionPopup, setSpecialActionPopup] = useState<SpecialActionPopupState>(null)
+  const [specialActionSequence, setSpecialActionSequence] = useState<SpecialActionSequenceState>(null)
   const [toast, setToast] = useState<string | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -319,6 +356,85 @@ export default function GamePlay() {
     setModeSelectorPopup(null)
   }
 
+  // 특수액션 모드 선택 시
+  const handleSelectSpecialActionMode = () => {
+    if (!modeSelectorPopup) return
+
+    // 선택된 재료들의 ingredient_master_id 수집
+    const ingredientMasterIds = modeSelectorPopup.ingredients
+      .map((ing) => ing.ingredientMasterId)
+      .filter((id): id is string => !!id)
+
+    if (ingredientMasterIds.length === 0) {
+      showToast('❌ 특수 액션이 없는 재료입니다.')
+      return
+    }
+
+    // 현재 활성 웍에서 recipe_id 가져오기
+    const activeWok = woks.find((w) => w.currentMenu)
+    if (!activeWok?.currentMenu) {
+      showToast('❌ 먼저 메뉴를 배정하세요.')
+      return
+    }
+
+    const recipe = getRecipeByMenuName(activeWok.currentMenu)
+    if (!recipe) {
+      showToast('❌ 레시피를 찾을 수 없습니다.')
+      return
+    }
+
+    // 해당 재료들의 특수 액션 조회
+    const actions = getRequiredSpecialActions(ingredientMasterIds, recipe.id)
+
+    if (actions.length === 0) {
+      showToast('❌ 특수 액션이 없는 재료입니다.')
+      return
+    }
+
+    // 특수 액션 시퀀스 시작
+    setSpecialActionSequence({
+      actions,
+      currentIndex: 0,
+      ingredients: modeSelectorPopup.ingredients,
+    })
+    setModeSelectorPopup(null)
+  }
+
+  // 특수 액션 시퀀스 완료 핸들러
+  const handleSequenceActionComplete = (actionId: string) => {
+    if (!specialActionSequence) return
+
+    // 액션 완료 기록
+    completeSpecialAction(actionId)
+
+    const nextIndex = specialActionSequence.currentIndex + 1
+    if (nextIndex < specialActionSequence.actions.length) {
+      // 다음 액션으로 이동
+      setSpecialActionSequence({
+        ...specialActionSequence,
+        currentIndex: nextIndex,
+      })
+    } else {
+      // 모든 액션 완료 → 모드 선택 팝업으로 복귀
+      setModeSelectorPopup({
+        ingredients: specialActionSequence.ingredients,
+      })
+      setSpecialActionSequence(null)
+      showToast('✅ 모든 특수 액션 완료!')
+    }
+  }
+
+  // 특수 액션 시퀀스 취소 핸들러
+  const handleSequenceActionCancel = () => {
+    if (!specialActionSequence) return
+
+    // 모드 선택 팝업으로 복귀
+    setModeSelectorPopup({
+      ingredients: specialActionSequence.ingredients,
+    })
+    setSpecialActionSequence(null)
+  }
+
   // 콜드메뉴 접시 선택 (bundleId가 전달되면 해당 묶음, 없으면 첫 번째 콜드 묶음)
   const handleSelectPlate = (orderId: string, menuName: string, recipeId: string, bundleId?: string) => {
     const { recipeBundles } = useGameStore.getState()
@@ -370,47 +486,77 @@ export default function GamePlay() {
   handleSelectMultipleRef.current = handleSelectMultipleIngredients
   handleSelectSeasoningRef.current = handleSelectSeasoning
 
-  // v3: recipeIngredientId 기반으로 변경
+  // v3: recipeIngredientId 기반으로 변경 + 특수 액션 체크 추가
   const handleConfirmAmount = (amountsByWok: Record<number, number>) => {
     if (!amountPopup) return
 
     const results: { burner: number; ok: boolean }[] = []
 
-    Object.entries(amountsByWok).forEach(([burnerStr, amount]) => {
+    // 특수 액션 체크용 - 첫 번째 웍에서만 체크
+    const entries = Object.entries(amountsByWok).filter(([, amount]) => amount > 0)
+
+    for (const [burnerStr, amount] of entries) {
       const burnerNumber = Number(burnerStr)
-      if (amount === 0) return
-
       const wok = woks.find((w) => w.burnerNumber === burnerNumber)
-      if (!wok?.currentMenu) return
+      if (!wok?.currentMenu) continue
 
-      let ok = false
-      // v3: 해당 웍의 현재 스텝에서 매칭되는 recipe_ingredient 찾기
       const reqs = getCurrentStepIngredients(wok.currentMenu!, wok.currentStep, wok.currentBundleId)
 
       if (amountPopup.type === 'ingredient') {
-        // v3: inventory_id로 매칭
         const match = reqs.find((r) => r.inventory_id === amountPopup.ingredient.id)
-        if (match) {
-          ok = validateAndAdvanceIngredient(burnerNumber, match.id, amount)
-        } else {
+        if (!match) {
           console.warn(`❌ 매칭되는 recipe_ingredient 없음: inventory_id=${amountPopup.ingredient.id}`)
-          ok = false
+          results.push({ burner: burnerNumber, ok: false })
+          continue
         }
+
+        // 특수 액션 체크: recipe_id + ingredient_master_id로 조회
+        const recipe = getRecipeByMenuName(wok.currentMenu!)
+        const ingredientMasterId = amountPopup.ingredient.ingredient_master_id
+
+        if (recipe && ingredientMasterId) {
+          const specialAction = ingredientSpecialActions.find(
+            (sa) => sa.recipe_id === recipe.id && sa.ingredient_master_id === ingredientMasterId
+          )
+
+          if (specialAction) {
+            // 특수 액션 팝업 표시 - 나머지 작업은 완료 후 처리
+            const ingredientName = amountPopup.ingredient.ingredient_master?.ingredient_name
+              ?? amountPopup.ingredient.sku_full
+              ?? '재료'
+
+            setSpecialActionPopup({
+              action: specialAction,
+              ingredientName,
+              pendingAction: {
+                burnerNumber,
+                recipeIngredientId: match.id,
+                amount,
+              },
+            })
+            setAmountPopup(null)
+            return // 특수 액션 팝업이 처리할 때까지 중단
+          }
+        }
+
+        // 특수 액션 없으면 바로 투입
+        const ok = validateAndAdvanceIngredient(burnerNumber, match.id, amount)
+        results.push({ burner: burnerNumber, ok })
       } else {
-        // v3: 조미료도 inventory_id로 매칭 (seasonings 테이블의 id 또는 inventory.id)
+        // 조미료 처리 (특수 액션 없음)
         const match = reqs.find((r) =>
           r.inventory_id === amountPopup.seasoning.id ||
           r.ingredient_master_id === amountPopup.seasoning.ingredient_master_id
         )
         if (match) {
-          ok = validateAndAdvanceIngredient(burnerNumber, match.id, amount)
+          const ok = validateAndAdvanceIngredient(burnerNumber, match.id, amount)
+          results.push({ burner: burnerNumber, ok })
         } else {
           console.warn(`❌ 매칭되는 recipe_ingredient 없음 (조미료): ${amountPopup.seasoning.seasoning_name}`)
-          ok = false
+          results.push({ burner: burnerNumber, ok: false })
         }
       }
-      results.push({ burner: burnerNumber, ok })
-    })
+    }
 
     const successCount = results.filter((r) => r.ok).length
     const failCount = results.filter((r) => !r.ok).length
@@ -423,6 +569,32 @@ export default function GamePlay() {
     }
 
     setAmountPopup(null)
+  }
+
+  // 특수 액션 완료 핸들러
+  const handleSpecialActionComplete = () => {
+    if (!specialActionPopup) return
+
+    const { pendingAction } = specialActionPopup
+    const ok = validateAndAdvanceIngredient(
+      pendingAction.burnerNumber,
+      pendingAction.recipeIngredientId,
+      pendingAction.amount
+    )
+
+    if (ok) {
+      showToast('✅ 재료 투입 완료!')
+    } else {
+      showToast('❌ 재료 투입 실패')
+    }
+
+    setSpecialActionPopup(null)
+  }
+
+  // 특수 액션 취소 핸들러
+  const handleSpecialActionCancel = () => {
+    showToast('❌ 특수 액션 취소됨')
+    setSpecialActionPopup(null)
   }
 
   // v3: inventory_id 기반으로 recipe_ingredient 매칭
@@ -614,15 +786,38 @@ export default function GamePlay() {
         />
       )}
 
-      {/* 재료 모드 선택 팝업 (투입/세팅존) */}
-      {modeSelectorPopup && (
-        <IngredientModeSelector
-          ingredients={modeSelectorPopup.ingredients}
-          onSelectInput={handleSelectInputMode}
-          onSelectSetting={handleSelectSettingMode}
-          onCancel={() => setModeSelectorPopup(null)}
-        />
-      )}
+      {/* 재료 모드 선택 팝업 (투입/세팅존/특수액션) */}
+      {modeSelectorPopup && (() => {
+        // 선택된 재료들의 ingredient_master_id 수집
+        const ingredientMasterIds = modeSelectorPopup.ingredients
+          .map((ing) => ing.ingredientMasterId)
+          .filter((id): id is string => !!id)
+
+        // 현재 활성 웍에서 recipe_id 가져오기
+        const activeWok = woks.find((w) => w.currentMenu)
+        const recipe = activeWok?.currentMenu ? getRecipeByMenuName(activeWok.currentMenu) : null
+        const recipeId = recipe?.id ?? ''
+
+        // 특수 액션 존재 여부 및 미완료 필수 액션 체크
+        const allActions = ingredientMasterIds.length > 0 && recipeId
+          ? getRequiredSpecialActions(ingredientMasterIds, recipeId)
+          : []
+        const pendingPrereqs = ingredientMasterIds.length > 0 && recipeId
+          ? getPendingPrerequisites(ingredientMasterIds, recipeId)
+          : []
+
+        return (
+          <IngredientModeSelector
+            ingredients={modeSelectorPopup.ingredients}
+            onSelectInput={handleSelectInputMode}
+            onSelectSetting={handleSelectSettingMode}
+            onSelectSpecialAction={handleSelectSpecialActionMode}
+            hasSpecialActions={allActions.length > 0}
+            hasPendingPrerequisites={pendingPrereqs.length > 0}
+            onCancel={() => setModeSelectorPopup(null)}
+          />
+        )
+      })()}
 
       {/* 세팅존 양 입력 팝업 */}
       {settingPopup && (
@@ -644,6 +839,28 @@ export default function GamePlay() {
           isMainDish={plateSelectPopup.isMainDish}
           onComplete={() => setPlateSelectPopup(null)}
           onCancel={() => setPlateSelectPopup(null)}
+        />
+      )}
+
+      {/* 특수 액션 팝업 - 단일 재료 투입 시 (전자레인지, 해동, 토치 등) */}
+      {specialActionPopup && (
+        <SpecialActionPopup
+          action={specialActionPopup.action}
+          currentIndex={0}
+          totalCount={1}
+          onComplete={(_actionId) => handleSpecialActionComplete()}
+          onCancel={handleSpecialActionCancel}
+        />
+      )}
+
+      {/* 특수 액션 시퀀스 팝업 - 다중 재료 선택 시 */}
+      {specialActionSequence && (
+        <SpecialActionPopup
+          action={specialActionSequence.actions[specialActionSequence.currentIndex]}
+          currentIndex={specialActionSequence.currentIndex}
+          totalCount={specialActionSequence.actions.length}
+          onComplete={handleSequenceActionComplete}
+          onCancel={handleSequenceActionCancel}
         />
       )}
 
