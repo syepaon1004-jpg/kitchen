@@ -91,7 +91,8 @@ export interface RecipeStep {
   step_number: number
   step_group?: number
   step_type: 'INGREDIENT' | 'ACTION'
-  action_type?: string
+  action_type?: string | null
+  action_params?: Record<string, unknown>  // v3.1: {required_duration, power} 등
   time_limit_seconds?: number
   is_order_critical?: boolean
   instruction?: string
@@ -108,6 +109,7 @@ export interface Recipe {
   category?: string
   difficulty_level?: string
   estimated_cooking_time?: number
+  menu_type?: 'HOT' | 'COLD' | 'MIXED' | 'FRYING'  // v3.1: 메뉴 타입
   description?: string
   // v3: steps 대신 recipe_bundles 사용
   recipe_bundles?: RecipeBundle[]
@@ -324,6 +326,7 @@ export type EquipmentType =
   | 'FRYER'
   | 'PREP_TABLE'
   | 'MICROWAVE'
+  | 'FREEZER'           // v3.1: 냉동고
   | 'PLATING_STATION'
   | 'CUTTING_BOARD'
   | 'TORCH'
@@ -356,8 +359,7 @@ export interface SeasoningCounterConfig {
 }
 
 export interface FryerConfig {
-  max_temp: number
-  oil_type: string
+  baskets: number  // v3.1: 튀김채 수 (기본 3)
 }
 
 export interface PlatingStationConfig {
@@ -370,7 +372,13 @@ export interface PrepTableConfig {
 }
 
 export interface MicrowaveConfig {
-  modes: string[]
+  capacity: number               // v3.1: 동시 조리 슬롯 수 (기본 1)
+  power_levels: string[]         // v3.1: ['LOW', 'MEDIUM', 'HIGH']
+}
+
+export interface FreezerConfig {
+  rows?: number
+  cols?: number
 }
 
 export interface CuttingBoardConfig {
@@ -426,6 +434,7 @@ export type EquipmentConfig =
   | PlatingStationConfig
   | PrepTableConfig
   | MicrowaveConfig
+  | FreezerConfig       // v3.1
   | CuttingBoardConfig
   | ColdTableConfig
   | WorktableConfig
@@ -451,7 +460,7 @@ export interface RecipeBundle {
   recipe_id: string
   bundle_name: string
   bundle_order: number
-  cooking_type: 'HOT' | 'COLD'
+  cooking_type: 'HOT' | 'COLD' | 'MICROWAVE' | 'FRYING'  // v3.1: 확장
   is_main_dish: boolean
   plate_type_id: string | null
   merge_target_bundle_id: string | null
@@ -498,18 +507,13 @@ export interface DecoStep {
   created_at?: string
 }
 
-// v3: 재료 특수 액션 (전처리 작업)
+// 재료 특수 액션 (전처리 작업)
 export interface IngredientSpecialAction {
   id: string
-  recipe_id: string                    // FK → recipes
-  ingredient_master_id: string         // FK → ingredients_master
-  action_name: string                  // 한글 액션명 (예: "해동하기")
-  action_name_en?: string              // 영문 액션명 (예: "Defrost")
-  action_type: 'MICROWAVE' | 'DEFROST' | 'MARINATE' | 'SOAK' | 'TORCH' | 'CUSTOM'
-  action_params: Record<string, unknown>  // { duration_seconds, power_level, ... }
-  instruction: string                  // 사용자에게 표시할 안내 텍스트
-  is_prerequisite: boolean             // true면 재료 투입 전 필수 수행
-  display_order: number                // 동일 재료에 여러 액션 시 순서
+  ingredient_master_id: string
+  action_type: 'SLICE' | 'DICE' | 'TORCH' | 'CHILL'
+  produces_sku: string
+  time_seconds: number
   created_at?: string
 }
 
@@ -521,13 +525,6 @@ export type DecoPlateStatus =
   | 'DECO_IN_PROGRESS'  // 데코 진행 중
   | 'DECO_COMPLETE'     // 데코 완료
   | 'READY_TO_SERVE'    // 서빙 준비 완료
-
-export type BundleStatus =
-  | 'NOT_STARTED'  // 아직 시작 안 함
-  | 'COOKING'      // 조리 중 (HOT: 웍에서, COLD: 세팅존)
-  | 'PLATED'       // 접시에 담김
-  | 'IN_DECO_ZONE' // 데코존에 있음
-  | 'MERGED'       // 다른 묶음에 합쳐짐
 
 export interface DecoLayer {
   decoStepId: string // v3: decoRuleId → decoStepId
@@ -573,22 +570,87 @@ export interface DecoSettingItem {
   amount: number
   unit: string
   remainingAmount: number
+  // v3.1: 묶음 타입 지원 (사이드 묶음 완성물)
+  sourceType?: 'INGREDIENT' | 'BUNDLE'
+  bundleId?: string
+  bundleName?: string
+  orderId?: string
+  recipeId?: string
 }
 
-export interface BundleProgress {
-  bundleId: string
-  bundleName: string
-  cookingType: 'HOT' | 'COLD'
-  isMainDish: boolean
-  status: BundleStatus
-  assignedBurner?: number
-  plateTypeId?: string
+// ============================================
+// === v3.1: 전자레인지 상태 타입 ===
+// ============================================
+
+export interface MicrowaveItem {
+  id: string                    // 고유 ID
+  orderId: string               // 주문 ID
+  bundleId: string              // 번들 ID
+  menuName: string              // 메뉴명
+  currentStep: number           // 현재 스텝 (0-based)
+  totalSteps: number            // 총 스텝 수
+  addedIngredientIds: string[]  // 투입 완료된 recipe_ingredients.id
+  powerLevel: 'LOW' | 'MEDIUM' | 'HIGH'  // 파워 레벨
+  requiredDuration: number      // 필요 조리 시간 (초)
+  elapsedDuration: number       // 경과 시간 (초)
+  startedAt: number | null      // 조리 시작 시각 (timestamp)
+  // v3.1: 재료 정보 (UI 표시용)
+  ingredients: Array<{
+    name: string
+    amount: number
+    unit: string
+  }>
 }
+
+export type MicrowaveStatus = 'EMPTY' | 'COOKING' | 'DONE'
+
+export interface MicrowaveState {
+  status: MicrowaveStatus
+  currentItem: MicrowaveItem | null    // 현재 조리 중인 아이템
+  waitingItems: MicrowaveItem[]        // 대기 중인 아이템들
+}
+
+// ============================================
+// === v3.1: 튀김기 상태 타입 ===
+// ============================================
+
+// v3.3: 바스켓 물리 상태 단순화 (isSubmerged가 핵심)
+export type FryerBasketStatus = 'EMPTY' | 'ASSIGNED' | 'BURNED'
+
+export interface FryerBasket {
+  basketNumber: number           // 1, 2, 3
+  status: FryerBasketStatus      // v3.3: EMPTY | ASSIGNED | BURNED만 사용
+  isSubmerged: boolean           // v3.3 핵심: true=기름에 잠김, false=올라와있음
+  orderId: string | null         // 주문 ID
+  bundleId: string | null        // 번들 ID
+  menuName: string | null        // 메뉴명
+  // v3.3: 레시피 관련 필드 제거 (BundleInstance.cooking으로 이동)
+  // currentStep, totalSteps, addedIngredientIds → BundleInstance.cooking
+  // requiredDuration, elapsedDuration → BundleInstance.cooking.timerSeconds, elapsedSeconds
+  startedAt: number | null       // 튀김 시작 시각 (타이머 기준점)
+}
+
+export interface FryerState {
+  baskets: FryerBasket[]         // 튀김채 3개
+  oilTemperature: number         // 기름 온도 (°C)
+  isHeating: boolean             // 가열 중 여부
+}
+
+// 튀김기 온도 관련 상수
+export const FRYER_TEMP = {
+  AMBIENT: 25,                   // 실온
+  OPTIMAL: 180,                  // 최적 튀김 온도
+  MIN_FRYING: 160,               // 최소 튀김 온도
+  MAX_SAFE: 200,                 // 최대 안전 온도
+  HEAT_RATE: 5,                  // 초당 온도 상승률 (°C/s)
+  COOL_RATE: 2,                  // 초당 온도 하강률 (°C/s)
+} as const
 
 // 데코존에서 현재 선택된 재료
 export interface SelectedDecoIngredient {
   type: 'DECO_ITEM' | 'SETTING_ITEM' // v3: DEFAULT_ITEM → DECO_ITEM
   id: string
+  instanceId?: string // v3.3: SETTING_ITEM의 경우 BundleInstance ID (수량 차감용)
   name: string
   color: string
   remainingAmount: number | null // null이면 무한 (has_exact_amount=false)
@@ -703,4 +765,56 @@ export function getIngredientDisplayName(ingredient: RecipeIngredient): string {
   return ingredient.display_name
     || ingredient.ingredient_master?.ingredient_name
     || '알 수 없는 재료'
+}
+
+// ============================================
+// === v3.1 리팩토링: BundleInstance 중앙 관리 ===
+// ============================================
+
+// 묶음이 있을 수 있는 모든 위치
+export type BundleLocation =
+  | { type: 'NOT_ASSIGNED' }
+  | { type: 'WOK'; burnerNumber: number }
+  | { type: 'MICROWAVE' }
+  | { type: 'FRYER'; basketNumber: number }
+  | { type: 'PLATE_SELECT' }
+  | { type: 'DECO_MAIN'; plateId: string }
+  | { type: 'DECO_SETTING' }
+  | { type: 'MERGED'; targetInstanceId: string }
+  | { type: 'SERVED' }
+
+// 조리 진행 상태 (레시피 기준)
+export interface CookingProgress {
+  currentStep: number
+  totalSteps: number
+  addedIngredientIds: string[]
+  startedAt: number | null
+  timerSeconds?: number
+  elapsedSeconds?: number
+  powerLevel?: 'LOW' | 'MEDIUM' | 'HIGH'
+}
+
+// 접시/데코 상태 (접시 선택 후 생성)
+export interface PlatingState {
+  plateType: PlateType
+  gridCells: DecoGridCell[]
+  appliedDecos: AppliedDeco[]
+  mergedBundleIds: string[]
+}
+
+// 묶음 인스턴스 (핵심)
+export interface BundleInstance {
+  id: string
+  orderId: string
+  menuName: string
+  recipeId: string
+  bundleId: string           // recipe_bundles.id
+  bundleName: string
+  cookingType: 'HOT' | 'COLD' | 'MICROWAVE' | 'FRYING'
+  isMainDish: boolean
+  location: BundleLocation
+  cooking: CookingProgress
+  plating: PlatingState | null
+  ingredients: Array<{ name: string; amount: number; unit: string }>
+  errors: number
 }

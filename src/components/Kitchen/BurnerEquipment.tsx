@@ -744,27 +744,28 @@ export default function BurnerEquipment({
         </div>
       </div>
 
-      {/* HOT 메뉴 그릇 선택 팝업 - Portal로 body에 렌더링 (transform 컨테이너 탈출) */}
+      {/* HOT 메뉴 그릇 선택 팝업 - Portal로 body에 렌더링 (v3.1: instanceId 기반) */}
       {showPlateSelectPopup && wok.currentMenu && wok.currentOrderId && createPortal(
         (() => {
-          const recipe = useGameStore.getState().getRecipeByMenuName(wok.currentMenu!)
-          const { recipeBundles } = useGameStore.getState()
+          // v3.1 리팩토링: getWokBundle로 BundleInstance 조회
+          const { getWokBundle } = useGameStore.getState()
+          const bundle = getWokBundle(burnerNumber)
 
-          // 해당 레시피의 HOT 묶음 찾기
-          const hotBundle = recipeBundles.find(
-            (b) => b.recipe_id === recipe?.id && b.cooking_type === 'HOT'
-          )
+          console.log('🍽️ 그릇 선택 팝업 - BundleInstance:', {
+            burnerNumber,
+            instanceId: bundle?.id,
+            bundleName: bundle?.bundleName,
+          })
+
+          if (!bundle) {
+            console.warn('🍽️ BundleInstance not found for burner:', burnerNumber)
+            setShowPlateSelectPopup(false)
+            return null
+          }
 
           return (
             <PlateSelectPopup
-              orderId={wok.currentOrderId!}
-              menuName={wok.currentMenu!}
-              recipeId={recipe?.id ?? ''}
-              bundleId={hotBundle?.id ?? null}
-              bundleName={hotBundle?.bundle_name ?? null}
-              isMainDish={hotBundle?.is_main_dish ?? true}
-              cookingType="HOT"
-              burnerNumber={burnerNumber}
+              instanceId={bundle.id}
               onComplete={() => setShowPlateSelectPopup(false)}
               onCancel={() => setShowPlateSelectPopup(false)}
             />

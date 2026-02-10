@@ -25,6 +25,7 @@ const EQUIPMENT_TYPES: EquipmentType[] = [
   'FRYER',
   'PREP_TABLE',
   'MICROWAVE',
+  'FREEZER',
   'PLATING_STATION',
   'CUTTING_BOARD',
   'TORCH',
@@ -44,6 +45,7 @@ const EQUIPMENT_ICONS: Record<EquipmentType, string> = {
   FRYER: '🍳',
   PREP_TABLE: '🥬',
   MICROWAVE: '📦',
+  FREEZER: '🧊',
   PLATING_STATION: '🍽️',
   CUTTING_BOARD: '🔪',
   TORCH: '🔦',
@@ -64,6 +66,7 @@ function getEquipmentColor(type: EquipmentType): string {
     FRYER: '#f97316',         // orange-500
     PREP_TABLE: '#22c55e',    // green-500
     MICROWAVE: '#8b5cf6',     // violet-500
+    FREEZER: '#1e40af',       // blue-800
     PLATING_STATION: '#ec4899', // pink-500
     CUTTING_BOARD: '#84cc16', // lime-500
     TORCH: '#eab308',         // yellow-500
@@ -384,6 +387,7 @@ export default function KitchenEditor() {
       FRYER: { w: 1, h: 1 },
       PREP_TABLE: { w: 2, h: 1 },
       MICROWAVE: { w: 1, h: 1 },
+      FREEZER: { w: 2, h: 2 },
       PLATING_STATION: { w: 2, h: 1 },
       CUTTING_BOARD: { w: 1, h: 1 },
       TORCH: { w: 1, h: 1 },

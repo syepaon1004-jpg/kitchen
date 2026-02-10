@@ -1,11 +1,44 @@
 import { useGameStore } from '../../stores/gameStore'
-import type { MenuOrder, RecipeBundle, BundleProgress } from '../../types/database.types'
+import type { MenuOrder, RecipeBundle, BundleInstance } from '../../types/database.types'
 import { MENU_TIMER } from '../../types/database.types'
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+// v3.1: BundleInstance.location.type에서 상태 텍스트 추출
+function getLocationStatusText(locationType: string): string {
+  switch (locationType) {
+    case 'NOT_ASSIGNED': return '대기'
+    case 'WOK': return '웍 조리중'
+    case 'MICROWAVE': return '전자레인지'
+    case 'FRYER': return '튀김중'
+    case 'PLATE_SELECT': return '접시선택'
+    case 'DECO_MAIN': return '데코중'
+    case 'DECO_SETTING': return '세팅완료'
+    case 'MERGED': return '합침'
+    case 'SERVED': return '서빙완료'
+    default: return locationType
+  }
+}
+
+// v3.1: BundleInstance.location.type에서 상태 아이콘 추출
+function getLocationStatusIcon(locationType: string): string {
+  switch (locationType) {
+    case 'NOT_ASSIGNED': return '⬜'
+    case 'WOK': return '🔥'
+    case 'MICROWAVE': return '📡'
+    case 'FRYER': return '🍟'
+    case 'PLATE_SELECT': return '🍽️'
+    case 'DECO_MAIN': return '🎨'
+    case 'DECO_SETTING': return '📦'
+    case 'MERGED': return '🔗'
+    case 'SERVED': return '✅'
+    default: return '⬜'
+  }
+}
+
 interface MenuQueueProps {
   onAssignToWok: (orderId: string, burnerNumber: number, bundleId?: string) => void
+  onAssignToFryer?: (orderId: string, basketNumber: number, bundleId?: string) => void
   selectedBurner: number | null
   onSelectMenu?: (menuId: string) => void
   selectedMenuId?: string | null
@@ -13,24 +46,37 @@ interface MenuQueueProps {
 }
 
 // 메뉴의 번들 타입 분석
-type MenuBundleType = 'HOT_ONLY' | 'COLD_ONLY' | 'MIXED' | 'SINGLE'
+type MenuBundleType = 'HOT_ONLY' | 'COLD_ONLY' | 'FRYING_ONLY' | 'MICROWAVE_ONLY' | 'MIXED' | 'SINGLE'
 
 interface MenuBundleInfo {
   type: MenuBundleType
   bundles: RecipeBundle[]
   hotBundles: RecipeBundle[]
   coldBundles: RecipeBundle[]
+  fryingBundles: RecipeBundle[]
+  microwaveBundles: RecipeBundle[]
 }
 
 export default function MenuQueue({
   onAssignToWok,
+  onAssignToFryer,
   selectedBurner,
   onSelectMenu,
   selectedMenuId,
   onSelectPlate,
 }: MenuQueueProps) {
-  const { menuQueue, woks, elapsedSeconds, recipeBundles, recipes, activeBundles } = useGameStore()
+  const {
+    menuQueue,
+    woks,
+    elapsedSeconds,
+    recipeBundles,
+    recipes,
+    fryerState,
+    // v3.1: BundleInstance 기반 selector만 사용
+    getOrderBundles,
+  } = useGameStore()
   const cleanWoks = woks.filter((w) => w.state === 'CLEAN' && !w.currentMenu)
+  const emptyBaskets = fryerState.baskets.filter((b) => b.status === 'EMPTY')
 
   // 확장된 메뉴 ID 추적
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null)
@@ -39,28 +85,37 @@ export default function MenuQueue({
   const getMenuBundleInfo = (menuName: string): MenuBundleInfo => {
     const recipe = recipes.find((r) => r.menu_name === menuName)
     if (!recipe) {
-      return { type: 'SINGLE', bundles: [], hotBundles: [], coldBundles: [] }
+      return { type: 'SINGLE', bundles: [], hotBundles: [], coldBundles: [], fryingBundles: [], microwaveBundles: [] }
     }
 
     const bundles = recipeBundles.filter((b) => b.recipe_id === recipe.id)
     if (bundles.length === 0) {
-      return { type: 'SINGLE', bundles: [], hotBundles: [], coldBundles: [] }
+      return { type: 'SINGLE', bundles: [], hotBundles: [], coldBundles: [], fryingBundles: [], microwaveBundles: [] }
     }
 
     const hotBundles = bundles.filter((b) => b.cooking_type === 'HOT')
     const coldBundles = bundles.filter((b) => b.cooking_type === 'COLD')
+    const fryingBundles = bundles.filter((b) => b.cooking_type === 'FRYING')
+    const microwaveBundles = bundles.filter((b) => b.cooking_type === 'MICROWAVE')
 
     let type: MenuBundleType = 'SINGLE'
-    if (hotBundles.length > 0 && coldBundles.length > 0) {
+
+    // 단일 타입 체크
+    const typeCount = [hotBundles.length > 0, coldBundles.length > 0, fryingBundles.length > 0, microwaveBundles.length > 0].filter(Boolean).length
+
+    if (typeCount > 1) {
       type = 'MIXED'
+    } else if (fryingBundles.length > 0) {
+      type = 'FRYING_ONLY'
+    } else if (microwaveBundles.length > 0) {
+      type = 'MICROWAVE_ONLY'
     } else if (hotBundles.length > 0) {
-      // HOT 묶음이 1개면 SINGLE로 처리 (기존 볶음밥 동작 유지)
       type = hotBundles.length === 1 ? 'HOT_ONLY' : 'MIXED'
     } else if (coldBundles.length > 0) {
       type = coldBundles.length === 1 ? 'COLD_ONLY' : 'MIXED'
     }
 
-    return { type, bundles, hotBundles, coldBundles }
+    return { type, bundles, hotBundles, coldBundles, fryingBundles, microwaveBundles }
   }
 
   const toggleExpand = (orderId: string) => {
@@ -79,6 +134,8 @@ export default function MenuQueue({
           const recipe = recipes.find((r) => r.menu_name === order.menuName)
           const isExpanded = expandedOrderId === order.id
           const isMixed = bundleInfo.type === 'MIXED'
+          // v3.1: BundleInstance 직접 사용
+          const bundleInstances = getOrderBundles(order.id)
 
           return (
             <MenuCard
@@ -86,15 +143,17 @@ export default function MenuQueue({
               order={order}
               index={index}
               onAssign={(burnerNumber, bundleId) => onAssignToWok(order.id, burnerNumber, bundleId)}
+              onAssignFryer={(basketNumber, bundleId) => onAssignToFryer?.(order.id, basketNumber, bundleId)}
               canAssign={order.status === 'WAITING' && cleanWoks.length > 0}
               selectedBurner={selectedBurner}
               bundleInfo={bundleInfo}
-              bundleProgress={activeBundles.get(order.id)}
+              bundleInstances={bundleInstances}
               recipeId={recipe?.id}
               onSelectPlate={onSelectPlate}
               isExpanded={isExpanded}
               onToggleExpand={() => isMixed && toggleExpand(order.id)}
               cleanWoksCount={cleanWoks.length}
+              emptyBaskets={emptyBaskets}
             />
           )
         })}
@@ -110,6 +169,8 @@ export default function MenuQueue({
           const recipe = recipes.find((r) => r.menu_name === order.menuName)
           const isExpanded = expandedOrderId === order.id
           const isMixed = bundleInfo.type === 'MIXED'
+          // v3.1: BundleInstance 직접 사용
+          const bundleInstances = getOrderBundles(order.id)
 
           return (
             <MobileMenuCard
@@ -119,13 +180,16 @@ export default function MenuQueue({
               recipe={recipe}
               elapsedSeconds={elapsedSeconds}
               cleanWoksCount={cleanWoks.length}
+              emptyBasketsCount={emptyBaskets.length}
+              emptyBaskets={emptyBaskets}
               onSelectMenu={onSelectMenu}
               onSelectPlate={onSelectPlate}
               onAssignToWok={onAssignToWok}
+              onAssignToFryer={onAssignToFryer}
               selectedMenuId={selectedMenuId}
               isExpanded={isExpanded}
               onToggleExpand={() => isMixed && toggleExpand(order.id)}
-              bundleProgress={activeBundles.get(order.id)}
+              bundleInstances={bundleInstances}
             />
           )
         })}
@@ -141,26 +205,32 @@ function MobileMenuCard({
   recipe,
   elapsedSeconds,
   cleanWoksCount,
+  emptyBasketsCount,
+  emptyBaskets,
   onSelectMenu,
   onSelectPlate,
   onAssignToWok,
+  onAssignToFryer,
   selectedMenuId,
   isExpanded,
   onToggleExpand,
-  bundleProgress,
+  bundleInstances,
 }: {
   order: MenuOrder
   bundleInfo: MenuBundleInfo
   recipe: any
   elapsedSeconds: number
   cleanWoksCount: number
+  emptyBasketsCount: number
+  emptyBaskets: { basketNumber: number; status: string }[]
   onSelectMenu?: (menuId: string) => void
   onSelectPlate?: (orderId: string, menuName: string, recipeId: string, bundleId?: string) => void
   onAssignToWok: (orderId: string, burnerNumber: number, bundleId?: string) => void
+  onAssignToFryer?: (orderId: string, basketNumber: number, bundleId?: string) => void
   selectedMenuId?: string | null
   isExpanded: boolean
   onToggleExpand: () => void
-  bundleProgress?: BundleProgress[]
+  bundleInstances: BundleInstance[]
 }) {
   const elapsedTime = (elapsedSeconds - order.enteredAt) * 1000
   const minutes = Math.floor(elapsedTime / 60000)
@@ -178,58 +248,60 @@ function MobileMenuCard({
 
   const isColdOnly = bundleInfo.type === 'COLD_ONLY'
   const isMixed = bundleInfo.type === 'MIXED'
-  const canSelect = order.status === 'WAITING' && (isColdOnly || cleanWoksCount > 0)
+  const isFryingOnly = bundleInfo.type === 'FRYING_ONLY'
+  const isMicrowaveOnly = bundleInfo.type === 'MICROWAVE_ONLY'
+  const canSelect = order.status === 'WAITING' && !isMicrowaveOnly && (
+    isColdOnly || (isFryingOnly && emptyBasketsCount > 0) || cleanWoksCount > 0
+  )
 
   // 번들 타입 배지
   const getBundleBadge = (type: MenuBundleType) => {
     switch (type) {
       case 'HOT_ONLY': return { text: '🔥', color: 'bg-orange-500' }
       case 'COLD_ONLY': return { text: '❄️', color: 'bg-cyan-500' }
+      case 'FRYING_ONLY': return { text: '🍟', color: 'bg-amber-500' }
+      case 'MICROWAVE_ONLY': return { text: '📡', color: 'bg-gray-500' }
       case 'MIXED': return { text: '🔥❄️', color: 'bg-purple-500' }
       default: return null
     }
   }
   const bundleBadge = getBundleBadge(bundleInfo.type)
 
-  // 번들 상태 아이콘
-  const getBundleStatusIcon = (status?: string) => {
-    switch (status) {
-      case 'NOT_STARTED': return '⬜'
-      case 'COOKING': return '🔥'
-      case 'PLATED': return '✅'
-      case 'IN_DECO_ZONE': return '📦'
-      case 'MERGED': return '🔗'
-      default: return '⬜'
-    }
-  }
+  // v3.1: BundleInstance에서 특정 bundleId의 인스턴스 찾기
+  const findInstance = (bundleId: string) => bundleInstances.find((i) => i.bundleId === bundleId)
 
   // MIXED가 아닌 경우 기존 동작
   if (!isMixed) {
-    return (
-      <button
-        disabled={!canSelect}
-        onClick={(e) => {
-          e.stopPropagation()
-          if (!canSelect) return
-
-          if (isColdOnly && onSelectPlate && recipe) {
-            onSelectPlate(order.id, order.menuName, recipe.id)
-          } else if (onSelectMenu) {
-            onSelectMenu(order.id)
-          }
-        }}
-        className={`min-w-[90px] p-2 rounded-lg shadow-md transition-all ${
-          selectedMenuId === order.id ? 'ring-2 ring-blue-500 scale-105' : ''
-        } ${
-          order.status === 'COMPLETED'
-            ? 'bg-green-200 border border-green-500'
-            : order.status === 'COOKING'
-              ? 'bg-orange-200 border border-orange-500'
-              : isColdOnly
-                ? 'bg-cyan-100 border border-cyan-500'
+    const hasNestedButtons = isFryingOnly && order.status === 'WAITING' && emptyBasketsCount > 0
+    const cardClassName = `min-w-[90px] p-2 rounded-lg shadow-md transition-all ${
+      selectedMenuId === order.id ? 'ring-2 ring-blue-500 scale-105' : ''
+    } ${
+      order.status === 'COMPLETED'
+        ? 'bg-green-200 border border-green-500'
+        : order.status === 'COOKING'
+          ? 'bg-orange-200 border border-orange-500'
+          : isColdOnly
+            ? 'bg-cyan-100 border border-cyan-500'
+            : isFryingOnly
+              ? 'bg-amber-100 border border-amber-500'
+              : isMicrowaveOnly
+                ? 'bg-gray-100 border border-gray-500'
                 : 'bg-yellow-200 border border-yellow-500'
-        } ${!canSelect ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-      >
+    } ${!canSelect ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`
+
+    const handleCardClick = (e: React.MouseEvent) => {
+      e.stopPropagation()
+      if (!canSelect) return
+
+      if (isColdOnly && onSelectPlate && recipe) {
+        onSelectPlate(order.id, order.menuName, recipe.id)
+      } else if (onSelectMenu) {
+        onSelectMenu(order.id)
+      }
+    }
+
+    const cardContent = (
+      <>
         <div className="flex items-center justify-between gap-1">
           <div className="font-bold text-[10px] text-gray-800 truncate flex-1">{order.menuName}</div>
           {bundleBadge && <span className="text-[8px]">{bundleBadge.text}</span>}
@@ -242,6 +314,47 @@ function MobileMenuCard({
         {isColdOnly && order.status === 'WAITING' && (
           <div className="text-[8px] text-cyan-700 mt-1 font-medium">🍽️ 접시선택</div>
         )}
+        {isFryingOnly && order.status === 'WAITING' && emptyBasketsCount > 0 && (
+          <div className="flex gap-0.5 mt-1">
+            {emptyBaskets.map((b) => {
+              // FRYING_ONLY 메뉴는 fryingBundles에서 첫 번째 번들 ID 사용
+              const fryingBundle = bundleInfo.fryingBundles[0]
+              return (
+                <button
+                  key={b.basketNumber}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onAssignToFryer?.(order.id, b.basketNumber, fryingBundle?.id)
+                  }}
+                  className="py-0.5 px-1 rounded text-[8px] font-medium bg-amber-200 hover:bg-amber-300 text-amber-800"
+                >
+                  🍟{b.basketNumber}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {isFryingOnly && order.status === 'WAITING' && emptyBasketsCount === 0 && (
+          <div className="text-[8px] text-amber-700 mt-1 font-medium opacity-60">🍟 바스켓 없음</div>
+        )}
+        {isMicrowaveOnly && order.status === 'WAITING' && (
+          <div className="text-[8px] text-gray-600 mt-1 font-medium">📡 전자레인지 (준비중)</div>
+        )}
+      </>
+    )
+
+    if (hasNestedButtons) {
+      return (
+        <div className={cardClassName} onClick={handleCardClick}>
+          {cardContent}
+        </div>
+      )
+    }
+
+    return (
+      <button disabled={!canSelect} onClick={handleCardClick} className={cardClassName}>
+        {cardContent}
       </button>
     )
   }
@@ -284,14 +397,18 @@ function MobileMenuCard({
             className="flex gap-1 overflow-hidden"
           >
             {bundleInfo.bundles.map((bundle) => {
-              const progress = bundleProgress?.find((p) => p.bundleId === bundle.id)
-              const isHot = bundle.cooking_type === 'HOT'
-              // 접시 선택 가능한 상태 (progress 없거나 NOT_STARTED 또는 status 미정의)
-              const isActionable = !progress || !progress.status || progress.status === 'NOT_STARTED'
-              // COOKING 상태여도 해당 묶음이 아직 시작되지 않았으면 액션 가능
+              // v3.1: BundleInstance에서 상태 정보 추출
+              const instance = findInstance(bundle.id)
+              const locationType = instance?.location.type ?? 'NOT_ASSIGNED'
+              const cookingType = bundle.cooking_type
+              const isHot = cookingType === 'HOT'
+              const isCold = cookingType === 'COLD'
+              const isFrying = cookingType === 'FRYING'
+              const isMicrowave = cookingType === 'MICROWAVE'
+              const isActionable = !instance || locationType === 'NOT_ASSIGNED'
               const canAction = (order.status === 'WAITING' || order.status === 'COOKING') && isActionable
-              // 접시 선택 완료 상태
-              const isPlateSelected = progress?.status === 'IN_DECO_ZONE' || progress?.status === 'PLATED'
+              const isPlateSelected = locationType === 'DECO_MAIN' || locationType === 'DECO_SETTING'
+              const bundleEmoji = isHot ? '🔥' : isCold ? '❄️' : isFrying ? '🍟' : '📡'
 
               return (
                 <motion.div
@@ -302,21 +419,25 @@ function MobileMenuCard({
                   className={`min-w-[80px] p-2 rounded-lg shadow-md border-2 ${
                     isHot
                       ? 'bg-orange-50 border-orange-300'
-                      : isPlateSelected
-                        ? 'bg-green-50 border-green-300'
-                        : 'bg-cyan-50 border-cyan-300'
+                      : isFrying
+                        ? 'bg-amber-50 border-amber-300'
+                        : isMicrowave
+                          ? 'bg-gray-50 border-gray-300'
+                          : isPlateSelected
+                            ? 'bg-green-50 border-green-300'
+                            : 'bg-cyan-50 border-cyan-300'
                   }`}
                 >
                   <div className="flex items-center gap-1 mb-1">
-                    <span className="text-sm">{isHot ? '🔥' : '❄️'}</span>
+                    <span className="text-sm">{bundleEmoji}</span>
                     <span className="text-[9px] font-bold text-gray-700 truncate">
                       {bundle.bundle_name}
                     </span>
                   </div>
                   <div className="text-[8px] text-gray-500 mb-1">
-                    {getBundleStatusIcon(progress?.status)} {progress?.status || 'NOT_STARTED'}
+                    {getLocationStatusIcon(locationType)} {getLocationStatusText(locationType)}
                   </div>
-                  {/* HOT: 화구 배정, COLD: 접시 선택 */}
+                  {/* HOT: 화구 배정 */}
                   {canAction && isHot && (
                     <div className="flex gap-0.5">
                       {[1, 2, 3].map((n) => (
@@ -335,7 +456,8 @@ function MobileMenuCard({
                       ))}
                     </div>
                   )}
-                  {canAction && !isHot && (
+                  {/* COLD: 접시 선택 */}
+                  {canAction && isCold && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -349,8 +471,37 @@ function MobileMenuCard({
                       🍽️ 접시
                     </button>
                   )}
+                  {/* FRYING: 튀김채 선택 */}
+                  {canAction && isFrying && emptyBasketsCount > 0 && (
+                    <div className="flex gap-0.5">
+                      {emptyBaskets.map((b) => (
+                        <button
+                          key={b.basketNumber}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onAssignToFryer?.(order.id, b.basketNumber, bundle.id)
+                          }}
+                          className="py-0.5 px-1 rounded text-[8px] font-medium bg-amber-200 hover:bg-amber-300 text-amber-800"
+                        >
+                          🍟{b.basketNumber}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {canAction && isFrying && emptyBasketsCount === 0 && (
+                    <div className="w-full py-1 rounded text-[8px] font-bold bg-amber-200 text-amber-800 text-center opacity-60">
+                      🍟 바스켓 없음
+                    </div>
+                  )}
+                  {/* MICROWAVE: 전자레인지 (준비중) */}
+                  {canAction && isMicrowave && (
+                    <div className="w-full py-1 rounded text-[8px] font-bold bg-gray-200 text-gray-600 text-center opacity-60">
+                      📡 전자레인지 (준비중)
+                    </div>
+                  )}
                   {/* COLD 묶음 접시 선택 완료 표시 */}
-                  {!isHot && isPlateSelected && (
+                  {isCold && isPlateSelected && (
                     <div className="w-full py-1 rounded text-[8px] font-bold bg-green-200 text-green-800 text-center">
                       ✅ 선택완료
                     </div>
@@ -370,28 +521,32 @@ function MenuCard({
   order,
   index,
   onAssign,
+  onAssignFryer,
   canAssign,
   selectedBurner,
   bundleInfo,
-  bundleProgress,
+  bundleInstances,
   recipeId,
   onSelectPlate,
   isExpanded,
   onToggleExpand,
   cleanWoksCount,
+  emptyBaskets,
 }: {
   order: MenuOrder
   index: number
   onAssign: (burnerNumber: number, bundleId?: string) => void
+  onAssignFryer?: (basketNumber: number, bundleId?: string) => void
   canAssign: boolean
   selectedBurner: number | null
   bundleInfo: MenuBundleInfo
-  bundleProgress?: BundleProgress[]
+  bundleInstances: BundleInstance[]
   recipeId?: string
   onSelectPlate?: (orderId: string, menuName: string, recipeId: string, bundleId?: string) => void
   isExpanded: boolean
   onToggleExpand: () => void
   cleanWoksCount: number
+  emptyBaskets: { basketNumber: number; status: string }[]
 }) {
   const elapsedSeconds = useGameStore((s) => s.elapsedSeconds)
   const [elapsedTime, setElapsedTime] = useState(0)
@@ -415,26 +570,21 @@ function MenuCard({
 
   const isColdOnly = bundleInfo.type === 'COLD_ONLY'
   const isMixed = bundleInfo.type === 'MIXED'
+  const isFryingOnly = bundleInfo.type === 'FRYING_ONLY'
+  const isMicrowaveOnly = bundleInfo.type === 'MICROWAVE_ONLY'
+
+  // v3.1: BundleInstance에서 특정 bundleId의 인스턴스 찾기
+  const findInstance = (bundleId: string) => bundleInstances.find((i) => i.bundleId === bundleId)
 
   // 상태별 스타일
   const getStatusClass = () => {
     if (order.status === 'COMPLETED') return 'bg-green-200 border-2 border-green-500'
     if (order.status === 'COOKING') return 'bg-orange-200 border-2 border-orange-500 animate-pulse'
     if (isColdOnly) return 'bg-cyan-100 border-2 border-cyan-400'
+    if (isFryingOnly) return 'bg-amber-100 border-2 border-amber-400'
+    if (isMicrowaveOnly) return 'bg-gray-100 border-2 border-gray-400'
     if (isMixed) return 'bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-400'
     return 'bg-yellow-200 border-2 border-yellow-500'
-  }
-
-  // 번들 상태 아이콘
-  const getBundleStatusIcon = (status?: string) => {
-    switch (status) {
-      case 'NOT_STARTED': return '⬜'
-      case 'COOKING': return '🔥'
-      case 'PLATED': return '✅'
-      case 'IN_DECO_ZONE': return '📦'
-      case 'MERGED': return '🔗'
-      default: return '⬜'
-    }
   }
 
   // MIXED가 아닌 경우 기존 레이아웃
@@ -445,9 +595,12 @@ function MenuCard({
           <div className="font-bold text-sm text-[#333] truncate flex-1">{order.menuName}</div>
           {bundleInfo.type !== 'SINGLE' && (
             <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-              isColdOnly ? 'bg-cyan-500 text-white' : 'bg-orange-500 text-white'
+              isColdOnly ? 'bg-cyan-500 text-white'
+              : isFryingOnly ? 'bg-amber-500 text-white'
+              : isMicrowaveOnly ? 'bg-gray-500 text-white'
+              : 'bg-orange-500 text-white'
             }`}>
-              {isColdOnly ? '❄️' : '🔥'}
+              {isColdOnly ? '❄️' : isFryingOnly ? '🍟' : isMicrowaveOnly ? '📡' : '🔥'}
             </span>
           )}
         </div>
@@ -460,20 +613,24 @@ function MenuCard({
         )}
 
         {/* HOT 메뉴: 화구 선택 버튼 */}
-        {order.status === 'WAITING' && !isColdOnly && canAssign && (
+        {order.status === 'WAITING' && !isColdOnly && !isFryingOnly && !isMicrowaveOnly && canAssign && (
           <div className="flex gap-1 flex-wrap mt-2">
-            {[1, 2, 3].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => onAssign(n)}
-                className={`py-1 px-2 rounded text-xs font-medium ${
-                  selectedBurner === n ? 'bg-primary text-white' : 'bg-white/80 text-[#333]'
-                }`}
-              >
-                화구{n}
-              </button>
-            ))}
+            {[1, 2, 3].map((n) => {
+              // HOT_ONLY 또는 단일 HOT 묶음 메뉴는 hotBundles에서 첫 번째 번들 ID 사용
+              const hotBundle = bundleInfo.hotBundles[0]
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => onAssign(n, hotBundle?.id)}
+                  className={`py-1 px-2 rounded text-xs font-medium ${
+                    selectedBurner === n ? 'bg-primary text-white' : 'bg-white/80 text-[#333]'
+                  }`}
+                >
+                  화구{n}
+                </button>
+              )
+            })}
           </div>
         )}
 
@@ -488,6 +645,38 @@ function MenuCard({
             <span>접시 선택</span>
           </button>
         )}
+
+        {/* FRYING 메뉴: 튀김채 선택 */}
+        {order.status === 'WAITING' && isFryingOnly && emptyBaskets.length > 0 && (
+          <div className="flex gap-1 flex-wrap mt-2">
+            {emptyBaskets.map((b) => {
+              // FRYING_ONLY 메뉴는 fryingBundles에서 첫 번째 번들 ID 사용
+              const fryingBundle = bundleInfo.fryingBundles[0]
+              return (
+                <button
+                  key={b.basketNumber}
+                  type="button"
+                  onClick={() => onAssignFryer?.(b.basketNumber, fryingBundle?.id)}
+                  className="py-1 px-2 rounded text-xs font-medium bg-amber-300 hover:bg-amber-400 text-amber-900"
+                >
+                  🍟 바스켓{b.basketNumber}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {order.status === 'WAITING' && isFryingOnly && emptyBaskets.length === 0 && (
+          <div className="w-full mt-2 py-2 px-3 rounded-lg bg-amber-200 text-amber-800 font-bold text-xs text-center opacity-70">
+            🍟 빈 바스켓 없음
+          </div>
+        )}
+
+        {/* MICROWAVE 메뉴: 전자레인지 (준비중) */}
+        {order.status === 'WAITING' && isMicrowaveOnly && (
+          <div className="w-full mt-2 py-2 px-3 rounded-lg bg-gray-200 text-gray-600 font-bold text-xs text-center opacity-70">
+            📡 전자레인지 (준비중)
+          </div>
+        )}
       </div>
     )
   }
@@ -495,7 +684,7 @@ function MenuCard({
   // MIXED 메뉴 - 확장 가능한 카드
   return (
     <div className="flex items-stretch gap-2">
-      {/* 메인 카드 - 묶음 개수에 따라 너비 유연하게 조정 */}
+      {/* 메인 카드 */}
       <div
         className={`min-w-[176px] p-4 rounded-lg shadow-lg ${getStatusClass()} transition cursor-pointer`}
         onClick={onToggleExpand}
@@ -512,7 +701,7 @@ function MenuCard({
           </div>
         )}
 
-        {/* 묶음 요약 (축소 상태) - 묶음이 많으면 카드 너비가 늘어남 */}
+        {/* 묶음 요약 (축소 상태) */}
         {!isExpanded && (
           <div className="mt-2 pt-2 border-t border-purple-200">
             <div className="flex items-center justify-between gap-2">
@@ -523,16 +712,17 @@ function MenuCard({
             </div>
             <div className="flex gap-1 mt-1 flex-wrap">
               {bundleInfo.bundles.map((bundle) => {
-                const progress = bundleProgress?.find((p) => p.bundleId === bundle.id)
+                const instance = findInstance(bundle.id)
+                const locationType = instance?.location.type ?? 'NOT_ASSIGNED'
                 return (
                   <div
                     key={bundle.id}
                     className="flex items-center gap-0.5 text-[10px] bg-white/60 px-1.5 py-0.5 rounded whitespace-nowrap"
-                    title={`${bundle.bundle_name}: ${progress?.status || 'NOT_STARTED'}`}
+                    title={`${bundle.bundle_name}: ${getLocationStatusText(locationType)}`}
                   >
                     <span>{bundle.cooking_type === 'HOT' ? '🔥' : '❄️'}</span>
                     <span className="font-medium">{bundle.bundle_name.slice(0, 4)}</span>
-                    <span>{getBundleStatusIcon(progress?.status)}</span>
+                    <span>{getLocationStatusIcon(locationType)}</span>
                   </div>
                 )
               })}
@@ -559,15 +749,21 @@ function MenuCard({
             className="flex gap-2 overflow-hidden"
           >
             {bundleInfo.bundles.map((bundle) => {
-              const progress = bundleProgress?.find((p) => p.bundleId === bundle.id)
-              const isHot = bundle.cooking_type === 'HOT'
-              // 접시 선택 가능한 상태 (progress 없거나 NOT_STARTED 또는 status 미정의)
-              const isActionable = !progress || !progress.status || progress.status === 'NOT_STARTED'
-              // COOKING 상태여도 해당 묶음이 아직 시작되지 않았으면 액션 가능
+              // v3.1: BundleInstance에서 상태 정보 추출
+              const instance = findInstance(bundle.id)
+              const locationType = instance?.location.type ?? 'NOT_ASSIGNED'
+              const cookingType = bundle.cooking_type
+              const isHot = cookingType === 'HOT'
+              const isCold = cookingType === 'COLD'
+              const isFrying = cookingType === 'FRYING'
+              const isMicrowave = cookingType === 'MICROWAVE'
+              const isActionable = !instance || locationType === 'NOT_ASSIGNED'
               const canAction = (order.status === 'WAITING' || order.status === 'COOKING') && isActionable
               const hasCleanWok = cleanWoksCount > 0
-              // 접시 선택 완료 상태
-              const isPlateSelected = progress?.status === 'IN_DECO_ZONE' || progress?.status === 'PLATED'
+              const hasEmptyBasket = emptyBaskets.length > 0
+              const isPlateSelected = locationType === 'DECO_MAIN' || locationType === 'DECO_SETTING'
+              const bundleEmoji = isHot ? '🔥' : isFrying ? '🍟' : isMicrowave ? '📡' : '❄️'
+              const bundleLabel = isHot ? 'HOT 조리' : isFrying ? '튀김' : isMicrowave ? '전자레인지' : 'COLD 플레이팅'
 
               return (
                 <motion.div
@@ -579,33 +775,37 @@ function MenuCard({
                   className={`w-36 min-w-[144px] p-3 rounded-lg shadow-lg border-2 ${
                     isHot
                       ? 'bg-orange-50 border-orange-300'
-                      : isPlateSelected
-                        ? 'bg-green-50 border-green-400'
-                        : 'bg-cyan-50 border-cyan-300'
+                      : isFrying
+                        ? 'bg-amber-50 border-amber-300'
+                        : isMicrowave
+                          ? 'bg-gray-50 border-gray-300'
+                          : isPlateSelected
+                            ? 'bg-green-50 border-green-400'
+                            : 'bg-cyan-50 border-cyan-300'
                   }`}
                 >
                   {/* 묶음 헤더 */}
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xl">{isHot ? '🔥' : '❄️'}</span>
+                    <span className="text-xl">{bundleEmoji}</span>
                     <div>
                       <div className="font-bold text-sm text-gray-800">{bundle.bundle_name}</div>
                       <div className="text-[10px] text-gray-500">
-                        {isHot ? 'HOT 조리' : 'COLD 플레이팅'}
+                        {bundleLabel}
                       </div>
                     </div>
                   </div>
 
                   {/* 상태 표시 */}
                   <div className={`text-xs mb-2 px-2 py-1 rounded ${
-                    !progress || !progress.status || progress.status === 'NOT_STARTED'
+                    locationType === 'NOT_ASSIGNED'
                       ? 'bg-gray-100 text-gray-600'
-                      : progress.status === 'COOKING'
+                      : locationType === 'WOK' || locationType === 'FRYER' || locationType === 'MICROWAVE'
                         ? 'bg-orange-100 text-orange-700'
-                        : progress.status === 'PLATED' || progress.status === 'IN_DECO_ZONE'
+                        : locationType === 'DECO_MAIN' || locationType === 'DECO_SETTING'
                           ? 'bg-green-100 text-green-700'
                           : 'bg-purple-100 text-purple-700'
                   }`}>
-                    {getBundleStatusIcon(progress?.status)} {progress?.status || '미시작'}
+                    {getLocationStatusIcon(locationType)} {getLocationStatusText(locationType)}
                   </div>
 
                   {/* HOT: 화구 배정 버튼 */}
@@ -636,7 +836,7 @@ function MenuCard({
                   )}
 
                   {/* COLD: 접시 선택 버튼 */}
-                  {canAction && !isHot && (
+                  {canAction && isCold && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -652,8 +852,42 @@ function MenuCard({
                     </button>
                   )}
 
+                  {/* FRYING: 튀김채 선택 버튼 */}
+                  {canAction && isFrying && hasEmptyBasket && (
+                    <div className="space-y-1">
+                      <div className="text-[10px] text-gray-500 font-medium">튀김채 선택</div>
+                      <div className="flex gap-1">
+                        {emptyBaskets.map((b) => (
+                          <button
+                            key={b.basketNumber}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onAssignFryer?.(b.basketNumber, bundle.id)
+                            }}
+                            className="flex-1 py-1.5 rounded text-xs font-bold bg-amber-400 hover:bg-amber-500 text-white transition"
+                          >
+                            {b.basketNumber}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {canAction && isFrying && !hasEmptyBasket && (
+                    <div className="w-full py-2 rounded-lg bg-amber-200 text-amber-800 font-bold text-xs text-center opacity-70">
+                      🍟 빈 바스켓 없음
+                    </div>
+                  )}
+
+                  {/* MICROWAVE: 전자레인지 (준비중) */}
+                  {canAction && isMicrowave && (
+                    <div className="w-full py-2 rounded-lg bg-gray-200 text-gray-600 font-bold text-xs text-center opacity-70">
+                      📡 전자레인지 (준비중)
+                    </div>
+                  )}
+
                   {/* COLD 묶음 접시 선택 완료 표시 */}
-                  {!isHot && isPlateSelected && (
+                  {isCold && isPlateSelected && (
                     <div className="w-full py-2 rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 text-white font-bold text-xs shadow-md flex items-center justify-center gap-1">
                       <span>✅</span>
                       <span>접시 선택 완료</span>

@@ -2,47 +2,44 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '../../stores/gameStore'
 import { useSound } from '../../hooks/useSound'
-import type { PlateType, DecoPlate, DecoGridCell } from '../../types/database.types'
+import type { PlateType } from '../../types/database.types'
 
+// v3.1 리팩토링: instanceId 기반 props
 interface PlateSelectPopupProps {
-  orderId: string
-  menuName: string
-  recipeId: string
-  bundleId: string | null
-  bundleName: string | null
-  isMainDish: boolean
+  instanceId: string  // BundleInstance.id
   onComplete: () => void
   onCancel: () => void
-  // HOT 메뉴용 추가 props
-  cookingType?: 'HOT' | 'COLD'
-  burnerNumber?: number // HOT 메뉴일 때 웍 정보
 }
 
-type Phase = 'SELECT' | 'COMPLETE'
+type Phase = 'SELECT' | 'COMPLETE' | 'SETTING_COMPLETE'
 
 /**
- * 접시 선택 팝업 (콜드메뉴용)
- * 1단계: 접시 타입 선택
- * 2단계: 완료 후 [닫기 / 데코존 이동] 버튼 표시
+ * 접시 선택 팝업 - v3.1 리팩토링
+ * - instanceId로 BundleInstance 조회
+ * - routeAfterPlate 통합 함수로 라우팅 처리
  */
 export default function PlateSelectPopup({
-  orderId,
-  menuName,
-  recipeId,
-  bundleId,
-  bundleName,
-  isMainDish,
+  instanceId,
   onComplete,
   onCancel,
-  cookingType = 'COLD',
-  burnerNumber,
 }: PlateSelectPopupProps) {
-  const { plateTypes, addToDecoZone, openDecoZone, updateBundleProgress, recipeBundles, updateWok } = useGameStore()
+  const { plateTypes, routeAfterPlate, openDecoZone, bundleInstances } = useGameStore()
   const { playSound } = useSound()
+
+  // BundleInstance 조회
+  const instance = bundleInstances.find((b) => b.id === instanceId)
 
   const [phase, setPhase] = useState<Phase>('SELECT')
   const [selectedPlateType, setSelectedPlateType] = useState<PlateType | null>(null)
-  const [, setCreatedPlate] = useState<DecoPlate | null>(null)
+
+  // instance가 없으면 early return
+  if (!instance) {
+    console.warn('PlateSelectPopup: instance not found:', instanceId)
+    return null
+  }
+
+  // instance에서 데이터 추출
+  const { menuName, bundleName, isMainDish, cookingType } = instance
 
   // ESC 키로 닫기
   useEffect(() => {
@@ -66,71 +63,13 @@ export default function PlateSelectPopup({
       return
     }
 
-    // 3x3 그리드 셀 초기화
-    const gridCells: DecoGridCell[] = []
-    for (let i = 1; i <= 9; i++) {
-      gridCells.push({ position: i, layers: [] })
-    }
+    // v3.1 리팩토링: 통합 함수 한 줄로 모든 라우팅 처리
+    routeAfterPlate(instanceId, selectedPlateType)
 
-    // DecoPlate 생성
-    const newPlate: DecoPlate = {
-      id: `plate-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      orderId,
-      menuName,
-      recipeId,
-      bundleId,
-      bundleName,
-      plateType: selectedPlateType,
-      isMainDish,
-      status: 'DECO_WAITING',
-      appliedDecos: [],
-      gridCells,
-      mergedBundles: [],
-    }
+    console.log(`🍽️ 접시 선택 완료: ${menuName} (${bundleName ?? '메인'}) → ${isMainDish ? 'DECO_MAIN' : 'DECO_SETTING'}`)
 
-    // 데코존에 플레이트 추가
-    const success = addToDecoZone(newPlate)
-    if (!success) {
-      alert('데코존이 가득 찼습니다. (최대 6개)')
-      return
-    }
-
-    // HOT 메뉴일 때: 웍을 DIRTY 상태로 변경하고 메뉴 정보 초기화
-    if (cookingType === 'HOT' && burnerNumber !== undefined) {
-      updateWok(burnerNumber, {
-        state: 'DIRTY',
-        currentMenu: null,
-        currentOrderId: null,
-        currentStep: 0,
-        stepStartTime: null,
-        isOn: false,
-        burnerOnSince: null,
-        addedIngredientIds: [], // v3: addedIngredients → addedIngredientIds
-        recipeErrors: 0,
-        totalSteps: 0,
-      })
-      console.log(`🍳 화구${burnerNumber}: ${menuName} → 접시로 이동, 웍 DIRTY 상태로 변경`)
-    }
-
-    // 묶음 진행 상태 업데이트 (IN_DECO_ZONE으로 설정)
-    if (bundleId) {
-      const bundle = recipeBundles.find((b) => b.id === bundleId)
-      if (bundle) {
-        updateBundleProgress(orderId, {
-          bundleId,
-          bundleName: bundle.bundle_name,
-          cookingType: bundle.cooking_type as 'HOT' | 'COLD',
-          isMainDish: bundle.is_main_dish,
-          status: 'IN_DECO_ZONE',
-          plateTypeId: selectedPlateType.id,
-          assignedBurner: burnerNumber,
-        })
-      }
-    }
-
-    setCreatedPlate(newPlate)
     playSound('confirm')
-    setPhase('COMPLETE')
+    setPhase(isMainDish ? 'COMPLETE' : 'SETTING_COMPLETE')
   }
 
   const handleClose = () => {
@@ -166,6 +105,9 @@ export default function PlateSelectPopup({
     }
   }
 
+  // 헤더 색상 결정
+  const isHot = cookingType === 'HOT' || cookingType === 'FRYING'
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -183,7 +125,7 @@ export default function PlateSelectPopup({
       >
         {/* 헤더 */}
         <div className={`p-4 border-b flex justify-between items-center ${
-          cookingType === 'HOT'
+          isHot
             ? 'bg-gradient-to-r from-orange-500 to-red-500'
             : 'bg-gradient-to-r from-cyan-500 to-blue-500'
         }`}>
@@ -191,7 +133,7 @@ export default function PlateSelectPopup({
             <h3 className="font-bold text-white text-lg">
               {phase === 'SELECT' ? '그릇 선택' : '그릇 준비 완료'}
             </h3>
-            <p className={`text-xs mt-1 ${cookingType === 'HOT' ? 'text-orange-100' : 'text-cyan-100'}`}>
+            <p className={`text-xs mt-1 ${isHot ? 'text-orange-100' : 'text-cyan-100'}`}>
               {phase === 'SELECT'
                 ? `${menuName} - 플레이팅할 그릇을 선택하세요`
                 : '데코존에서 플레이팅을 시작하세요'}
@@ -312,7 +254,7 @@ export default function PlateSelectPopup({
                 </button>
               </div>
             </motion.div>
-          ) : (
+          ) : phase === 'COMPLETE' ? (
             <motion.div
               key="complete"
               initial={{ opacity: 0, x: 20 }}
@@ -379,7 +321,70 @@ export default function PlateSelectPopup({
                 </button>
               </div>
             </motion.div>
-          )}
+          ) : phase === 'SETTING_COMPLETE' ? (
+            // v3.1: 비메인 묶음 - 꺼내놓은 식자재 zone으로 이동 완료
+            <motion.div
+              key="setting-complete"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="p-6"
+            >
+              {/* 완료 표시 */}
+              <div className="text-center mb-6">
+                <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-4xl shadow-lg mb-4">
+                  📦
+                </div>
+                <div className="text-gray-800 font-bold text-lg">꺼내놓은 식자재로 이동!</div>
+                <div className="text-gray-500 text-sm mt-1">
+                  데코존에서 메인 플레이트에 배치하세요
+                </div>
+              </div>
+
+              {/* 묶음 정보 */}
+              <div className="bg-teal-50 rounded-lg p-4 mb-6 border border-teal-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-lg bg-teal-100 flex items-center justify-center text-2xl">
+                    🥡
+                  </div>
+                  <div>
+                    <div className="font-bold text-teal-800">
+                      {bundleName ?? menuName}
+                    </div>
+                    <div className="text-xs text-teal-600 mt-0.5">
+                      사이드 / 토핑용 묶음 (조리 완료)
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 안내 메시지 */}
+              <div className="bg-gray-50 rounded-lg p-3 mb-6 text-center">
+                <span className="text-gray-600 text-sm">
+                  데코존에서 메인 플레이트 위에 배치하세요
+                </span>
+              </div>
+
+              {/* 닫기 / 이동 버튼 */}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="flex-1 py-3 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-sm"
+                >
+                  닫기
+                </button>
+                <button
+                  type="button"
+                  onClick={handleMoveToDecoZone}
+                  className="flex-1 py-3 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2"
+                >
+                  <span>🎨</span>
+                  <span>데코존으로 이동</span>
+                </button>
+              </div>
+            </motion.div>
+          ) : null}
         </AnimatePresence>
       </motion.div>
     </motion.div>

@@ -42,7 +42,8 @@ export default function StorageEquipment({
 
   // 서랍/냉장고 칸 레이블 생성
   const getBoxLabel = (index: number, _locationId: string): string => {
-    if (equipmentType === 'DRAWER_FRIDGE') {
+    // v3.1: DRAWER_FRIDGE와 FREEZER(서랍형태)는 동일하게 처리
+    if (equipmentType === 'DRAWER_FRIDGE' || equipmentType === 'FREEZER') {
       const labels = ['좌상', '우상', '좌하', '우하']
       return labels[index] ?? `칸${index + 1}`
     }
@@ -51,14 +52,21 @@ export default function StorageEquipment({
     return labels[index] ?? `박스${index + 1}`
   }
 
-  // 서랍 클릭 (DRAWER_FRIDGE)
+  // v3.1: 장비 형태 판별 (서랍형 vs 4호박스형)
+  const isDrawerType = equipmentType === 'DRAWER_FRIDGE' || equipmentType === 'FREEZER'
+  // is4BoxType은 필요 시 equipmentType === 'FRIDGE_4BOX'로 직접 체크
+
+  // 서랍 클릭 (DRAWER_FRIDGE, FREEZER)
   const handleDrawerClick = (locationId: string) => {
+    console.log(`📦 handleDrawerClick: locationId=${locationId}, storageCache keys:`, Object.keys(storageCache))
     const cachedData = storageCache[locationId]
 
     if (!cachedData) {
-      alert('이 서랍에 등록된 식자재가 없습니다.')
+      console.warn(`📦 storageCache에 ${locationId} 없음. 전체 캐시:`, storageCache)
+      alert(`이 ${equipmentType === 'FREEZER' ? '냉동고' : '서랍'}에 등록된 식자재가 없습니다. (${locationId})`)
       return
     }
+    console.log(`📦 ${locationId} 데이터 로드:`, cachedData.ingredients.length, '개 재료')
 
     setGridPopup({
       title: cachedData.title,
@@ -156,21 +164,24 @@ export default function StorageEquipment({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="w-full h-full bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 rounded-lg p-1 lg:p-2 flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-all border border-gray-300"
+        className={`w-full h-full rounded-lg p-1 lg:p-2 flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-all border ${
+          equipmentType === 'FREEZER'
+            ? 'bg-gradient-to-br from-blue-200 via-blue-100 to-blue-200 border-blue-300'
+            : 'bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 border-gray-300'
+        }`}
         style={{
-          backgroundImage: `
-            linear-gradient(135deg,
-              rgba(255,255,255,0.8) 0%,
-              rgba(200,200,200,0.3) 50%,
-              rgba(255,255,255,0.8) 100%)
-          `,
+          backgroundImage: equipmentType === 'FREEZER'
+            ? `linear-gradient(135deg, rgba(200,220,255,0.8) 0%, rgba(180,200,240,0.3) 50%, rgba(200,220,255,0.8) 100%)`
+            : `linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(200,200,200,0.3) 50%, rgba(255,255,255,0.8) 100%)`,
           boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.9), 0 2px 8px rgba(0,0,0,0.1)',
         }}
       >
         <div className="text-2xl lg:text-3xl mb-1">
-          {equipmentType === 'DRAWER_FRIDGE' ? '🗄️' : '❄️'}
+          {equipmentType === 'FREEZER' ? '🧊' : equipmentType === 'DRAWER_FRIDGE' ? '🗄️' : '❄️'}
         </div>
-        <div className="text-[9px] lg:text-xs font-bold text-gray-700 text-center">
+        <div className={`text-[9px] lg:text-xs font-bold text-center ${
+          equipmentType === 'FREEZER' ? 'text-blue-700' : 'text-gray-700'
+        }`}>
           {displayName}
         </div>
       </button>
@@ -227,22 +238,25 @@ export default function StorageEquipment({
 
                     return (
                       <div key={locationId} className="relative w-40 h-32 lg:w-52 lg:h-40">
-                        {equipmentType === 'DRAWER_FRIDGE' ? (
-                          // 서랍냉장고: 바로 GridPopup 열기
+                        {isDrawerType ? (
+                          // 서랍형 (DRAWER_FRIDGE, FREEZER): 바로 GridPopup 열기
                           <button
                             onClick={() => handleDrawerClick(locationId)}
-                            className="w-full h-full rounded-lg bg-gradient-to-br from-gray-100 via-gray-50 to-gray-100 shadow-lg border-2 border-gray-300 text-gray-700 font-bold text-sm flex flex-col items-center justify-center gap-2 hover:scale-105 transition-transform"
+                            className={`w-full h-full rounded-lg shadow-lg border-2 font-bold text-sm flex flex-col items-center justify-center gap-2 hover:scale-105 transition-transform ${
+                              equipmentType === 'FREEZER'
+                                ? 'bg-gradient-to-br from-blue-100 via-blue-50 to-blue-100 border-blue-300 text-blue-700'
+                                : 'bg-gradient-to-br from-gray-100 via-gray-50 to-gray-100 border-gray-300 text-gray-700'
+                            }`}
                             style={{
-                              backgroundImage: `
-                                linear-gradient(135deg,
-                                  rgba(255,255,255,0.9) 0%,
-                                  rgba(220,220,220,0.5) 50%,
-                                  rgba(255,255,255,0.9) 100%)
-                              `,
+                              backgroundImage: equipmentType === 'FREEZER'
+                                ? `linear-gradient(135deg, rgba(220,235,255,0.9) 0%, rgba(200,220,250,0.5) 50%, rgba(220,235,255,0.9) 100%)`
+                                : `linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(220,220,220,0.5) 50%, rgba(255,255,255,0.9) 100%)`,
                               boxShadow: 'inset 0 2px 4px rgba(255,255,255,1), 0 4px 8px rgba(0,0,0,0.15)',
                             }}
                           >
-                            <div className="w-12 h-1.5 bg-gray-400 rounded-full shadow-md" />
+                            <div className={`w-12 h-1.5 rounded-full shadow-md ${
+                              equipmentType === 'FREEZER' ? 'bg-blue-400' : 'bg-gray-400'
+                            }`} />
                             <div className="text-sm font-bold">{label}</div>
                           </button>
                         ) : !isSelected ? (

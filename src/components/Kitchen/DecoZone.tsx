@@ -3,7 +3,8 @@ import { useGameStore } from '../../stores/gameStore'
 import { useSound } from '../../hooks/useSound'
 import DecoAmountPopup from './DecoAmountPopup'
 // v3: DecoIngredient, DecoStep 사용 (deprecated: DecoDefaultItem, DecoRule)
-import type { DecoIngredient, DecoStep, DecoSettingItem, DecoPlate, SelectedDecoIngredient } from '../../types/database.types'
+// v3.1: BundleInstance 기반 리팩토링
+import type { DecoIngredient, DecoStep, DecoPlate, SelectedDecoIngredient, BundleInstance } from '../../types/database.types'
 
 interface DecoZoneProps {
   onBack?: () => void
@@ -40,25 +41,50 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
     woks,
     level,
     decoIngredients, // v3: decoDefaultItems → decoIngredients
-    decoSettingItems,
-    decoPlates,
+    // v3.1: BundleInstance 기반 selectors
+    getDecoMainPlates,
+    getSettingBundles,
     selectedDecoIngredient,
     selectDecoIngredient,
     clearDecoSelection,
     applyDecoItem,
     getDecoStepForIngredient, // v3: getDecoRuleForIngredient → getDecoStepForIngredient
     addDecoMistake,
-    removeSettingItem,
+    moveBundle, // v3.1: removeSettingItem 대체
     decoSteps, // v3: decoRules → decoSteps (디버그용)
     checkDecoComplete,
-    servePlate,
+    // v3.1: serveBundle (servePlate 대체)
+    serveBundle,
     // 합치기 모드
     mergeMode,
     selectedSourcePlateId,
     enterMergeMode,
     exitMergeMode,
-    mergeBundles,
+    // v3.1: mergeBundle (mergeBundles 대체)
+    mergeBundle,
   } = useGameStore()
+
+  // v3.1: BundleInstance 기반 데이터
+  const decoMainInstances = getDecoMainPlates()
+  const settingInstances = getSettingBundles()
+
+  // v3.1: BundleInstance → DecoPlate 형태 변환 (UI 렌더링용)
+  const decoPlates: DecoPlate[] = decoMainInstances
+    .filter((inst) => inst.plating?.plateType) // plateType 필수
+    .map((inst) => ({
+      id: inst.id,
+      orderId: inst.orderId,
+      menuName: inst.menuName,
+      recipeId: inst.recipeId,
+      bundleId: inst.bundleId,
+      bundleName: inst.bundleName,
+      isMainDish: inst.isMainDish,
+      plateType: inst.plating!.plateType!,
+      gridCells: inst.plating?.gridCells ?? [],
+      status: inst.plating?.appliedDecos?.length ? 'DECO_IN_PROGRESS' as const : 'DECO_WAITING' as const,
+      appliedDecos: inst.plating?.appliedDecos ?? [],
+      mergedBundles: inst.plating?.mergedBundleIds ?? [],
+    }))
 
   const { playSound } = useSound()
 
@@ -112,17 +138,23 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
     selectDecoIngredient(selected)
   }
 
-  // 꺼내놓은 식자재 클릭
-  const handleSettingItemClick = (item: DecoSettingItem) => {
-    if (item.remainingAmount <= 0) return
+  // v3.1: 꺼내놓은 식자재 클릭 (BundleInstance 기반)
+  // v3.3 Fix: instance.ingredients에서 실제 수량/단위 사용
+  const handleSettingBundleClick = (instance: BundleInstance) => {
     playSound('add')
+    // v3.3: ingredients 배열에서 수량/단위 추출 (첫 번째 재료 기준)
+    const firstIngredient = instance.ingredients?.[0]
+    const totalAmount = firstIngredient?.amount ?? 1
+    const unit = firstIngredient?.unit ?? '인분'
+
     const selected: SelectedDecoIngredient = {
       type: 'SETTING_ITEM',
-      id: item.ingredientMasterId, // 데코 규칙 검색용 ID (item.id가 아님!)
-      name: item.ingredientName,
-      color: '#60A5FA', // 기본 파란색
-      remainingAmount: item.remainingAmount,
-      unit: item.unit,
+      id: instance.bundleId, // 데코 규칙 검색용 ID
+      instanceId: instance.id, // v3.3: 수량 차감용 인스턴스 ID
+      name: instance.bundleName ?? instance.menuName,
+      color: '#14B8A6', // teal-500 (번들용)
+      remainingAmount: totalAmount, // v3.3: 실제 수량 사용
+      unit, // v3.3: 실제 단위 사용
     }
     selectDecoIngredient(selected)
   }
@@ -165,9 +197,17 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
     // v3: 수량 입력 필요 여부 확인 (required_amount만 사용)
     const requiredAmount = step.required_amount ?? 1
 
-    // SETTING_ITEM 유형은 항상 수량 팝업 표시 (사용자가 양을 선택하도록)
+    // v3.3 Fix: SETTING_ITEM은 항상 수량 팝업 표시 (BUNDLE 타입 스텝이어도)
+    // 육회 300g, 냉면육수 4개 등 수량 선택이 필요한 경우
     if (selectedDecoIngredient.type === 'SETTING_ITEM') {
       setAmountPopup({ plateId, position, step })
+      return
+    }
+
+    // v3.1: BUNDLE 타입은 수량 팝업 없이 바로 적용 (1인분 고정)
+    // 주의: 위에서 SETTING_ITEM 체크가 먼저 수행됨
+    if (step.source_type === 'BUNDLE') {
+      applyDecoWithAmount(plateId, position, requiredAmount)
       return
     }
 
@@ -333,43 +373,49 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
           </div>
         </div>
 
-        {/* 우측: 꺼내놓은 식자재 */}
+        {/* 우측: 꺼내놓은 식자재 (v3.1: BundleInstance 기반) */}
         <div>
           <div className="text-xs font-bold text-gray-600 mb-2 flex items-center gap-1">
             <span>📦</span> 꺼내놓은 식자재
           </div>
           <div className="flex flex-wrap gap-2">
-            {decoSettingItems.length === 0 ? (
+            {settingInstances.length === 0 ? (
               <div className="text-xs text-gray-400">세팅된 재료 없음</div>
             ) : (
-              decoSettingItems.map((item) => {
-                const isEmpty = item.remainingAmount <= 0
+              settingInstances.map((instance) => {
+                const displayName = instance.bundleName ?? instance.menuName
+                const isSelected = selectedDecoIngredient?.id === instance.bundleId
+                // v3.3: ingredients에서 실제 수량/단위 추출
+                const firstIngredient = instance.ingredients?.[0]
+                const amount = firstIngredient?.amount ?? 1
+                const unit = firstIngredient?.unit ?? '인분'
+                const amountText = `${amount}${unit}`
                 return (
-                  <div key={item.id} className="relative group">
+                  <div key={instance.id} className="relative group">
                     <button
                       type="button"
-                      onClick={() => handleSettingItemClick(item)}
-                      disabled={isEmpty}
+                      onClick={() => handleSettingBundleClick(instance)}
                       className={`px-3 py-2 rounded-lg text-xs font-medium shadow-md transition-all ${
-                        isEmpty
-                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-50'
-                          : selectedDecoIngredient?.id === item.id
-                            ? 'bg-blue-500 text-white ring-2 ring-blue-300'
-                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                        isSelected
+                          ? 'bg-teal-500 text-white ring-2 ring-teal-300'
+                          : 'bg-teal-100 text-teal-700 hover:bg-teal-200 border-2 border-teal-300'
                       }`}
                     >
-                      <div>{item.ingredientName}</div>
+                      <div className="flex items-center gap-1">
+                        <span>🥡</span>
+                        <span>{displayName}</span>
+                      </div>
                       <div className="text-[10px] mt-0.5">
-                        {item.remainingAmount}{item.unit}/{item.amount}{item.unit}
+                        {amountText} (조리완료)
                       </div>
                     </button>
-                    {/* 다시 넣기 버튼 */}
+                    {/* 다시 넣기 버튼 - v3.1: moveBundle로 NOT_ASSIGNED 이동 */}
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
                         playSound('remove')
-                        removeSettingItem(item.id)
+                        moveBundle(instance.id, { type: 'NOT_ASSIGNED' })
                       }}
                       className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs font-bold shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 flex items-center justify-center"
                       title="다시 넣기"
@@ -470,11 +516,12 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
                   : null
 
                 // 합치기 모드에서 타겟 하이라이트 여부
+                // v3.1: orderId 대신 recipeId로 비교 (동일 메뉴면 어떤 주문이든 합치기 가능)
                 const isTargetHighlight =
                   mergeMode &&
                   sourcePlate &&
                   plate.isMainDish &&
-                  plate.orderId === sourcePlate.orderId &&
+                  plate.recipeId === sourcePlate.recipeId &&
                   plate.id !== selectedSourcePlateId
 
                 return (
@@ -486,7 +533,9 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
                     cellFlash={cellFlash?.plateId === plate.id ? cellFlash : null}
                     isComplete={isComplete}
                     onServe={() => {
-                      if (servePlate(plate.id)) {
+                      // v3.1: serveBundle 사용 (boolean 반환)
+                      const success = serveBundle(plate.id)
+                      if (success) {
                         playSound('confirm')
                       }
                     }}
@@ -495,7 +544,8 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
                     isTargetHighlight={isTargetHighlight ?? false}
                     onMergeClick={() => {
                       if (selectedSourcePlateId) {
-                        const result = mergeBundles(plate.id, selectedSourcePlateId)
+                        // v3.1: mergeBundle 사용
+                        const result = mergeBundle(plate.id, selectedSourcePlateId)
                         if (result.success) {
                           playSound('confirm')
                         } else {

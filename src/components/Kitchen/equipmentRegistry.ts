@@ -6,6 +6,9 @@ import SinkEquipment from './SinkEquipment'
 import StorageEquipment from './StorageEquipment'
 import SeasoningEquipment from './SeasoningEquipment'
 import PrepTableEquipment from './PrepTableEquipment'
+// v3.1: 신규 장비 컴포넌트
+import MicrowaveEquipment from './equipment/MicrowaveEquipment'
+import FryerEquipment from './equipment/FryerEquipment'
 
 // 장비 타입별 컴포넌트 매핑 레지스트리
 // 아직 구현되지 않은 컴포넌트는 PlaceholderEquipment로 표시
@@ -16,10 +19,11 @@ const EQUIPMENT_COMPONENTS: Record<EquipmentType, ComponentType<EquipmentCompone
   FRIDGE_4BOX: StorageEquipment,          // ✅ 4호박스 (storageCache 기반, 층 선택 지원)
   SEASONING_COUNTER: SeasoningEquipment,  // ✅ 조미료대 (gameStore 콜백 기반)
   PREP_TABLE: PrepTableEquipment,         // ✅ 작업다이 (데코존 줌인 지원)
-  FRYER: PlaceholderEquipment,
+  FRYER: FryerEquipment,                  // v3.1: 튀김기
   PLATING_STATION: PlaceholderEquipment,
   CUTTING_BOARD: PlaceholderEquipment,
-  MICROWAVE: PlaceholderEquipment,
+  MICROWAVE: MicrowaveEquipment,          // v3.1: 전자레인지
+  FREEZER: StorageEquipment,              // v3.1 Fix: 냉동고도 StorageEquipment 사용 (동일한 플로우)
   TORCH: PlaceholderEquipment,
   COLD_TABLE: PlaceholderEquipment,
   WORKTABLE: PlaceholderEquipment,

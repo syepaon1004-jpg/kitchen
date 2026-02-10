@@ -23,6 +23,7 @@ const EQUIPMENT_EMOJI: Record<EquipmentType, string> = {
   PLATING_STATION: '🍽️',
   CUTTING_BOARD: '🔪',
   MICROWAVE: '📡',
+  FREEZER: '🧊',        // v3.1
   TORCH: '🔦',
   COLD_TABLE: '🧊',
   PREP_TABLE: '🪵',
@@ -42,6 +43,7 @@ const EQUIPMENT_COLORS: Record<EquipmentType, string> = {
   PLATING_STATION: 'bg-purple-600',
   CUTTING_BOARD: 'bg-lime-600',
   MICROWAVE: 'bg-gray-600',
+  FREEZER: 'bg-blue-900',    // v3.1
   TORCH: 'bg-red-500',
   COLD_TABLE: 'bg-sky-600',
   PREP_TABLE: 'bg-stone-500',
