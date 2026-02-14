@@ -740,8 +740,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
           newState = 'BURNED'
           console.warn(`화구${wok.burnerNumber}: 🔥 타버림! (온도: ${Math.round(newTemp)}°C)`)
           
-          // 메뉴 실패 처리
+          // 메뉴 실패 처리 + BundleInstance 정리
           const orderId = wok.currentOrderId
+          const burnedBurnerNumber = wok.burnerNumber
           if (orderId) {
             setTimeout(() => {
               useGameStore.setState((st) => ({
@@ -749,6 +750,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
                   o.id === orderId
                     ? { ...o, status: 'WAITING' as const, assignedBurner: null }
                     : o
+                ),
+                bundleInstances: st.bundleInstances.filter(
+                  (b) => !(b.location.type === 'WOK' && b.location.burnerNumber === burnedBurnerNumber)
+                ),
+              }))
+            }, 0)
+          } else {
+            // orderId 없어도 BundleInstance는 정리
+            setTimeout(() => {
+              useGameStore.setState((st) => ({
+                bundleInstances: st.bundleInstances.filter(
+                  (b) => !(b.location.type === 'WOK' && b.location.burnerNumber === burnedBurnerNumber)
                 ),
               }))
             }, 0)
@@ -1991,10 +2004,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const location = instance.location
 
-    // 2. cleanupEquipment (인라인)
+    // 2. cleanupEquipment (state는 CLEAN 유지 → 즉시 재사용 가능, 나머지 물리 상태 초기화)
     if (location.type === 'WOK') {
       updateWok(location.burnerNumber, {
-        state: 'DIRTY',
         isOn: false,
         burnerOnSince: null,
         isStirFrying: false,
@@ -2006,6 +2018,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         currentStep: 0,
         totalSteps: 0,
         addedIngredientIds: [],
+        stepStartTime: null,
+        recipeErrors: 0,
+        hasWater: false,
+        waterTemperature: WOK_TEMP.AMBIENT,
+        waterBoilStartTime: null,
+        isBoiling: false,
       })
     } else if (location.type === 'FRYER') {
       // v3.3: FryerBasket은 물리 상태만 관리 (레시피 진행은 BundleInstance에서)
@@ -2047,7 +2065,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return
     }
 
-    // 1.5. 웍에서 이동하는 경우, 웍 상태 정리
+    // 1.5. 웍에서 이동하는 경우, 웍 상태 정리 (state는 CLEAN 유지 → 즉시 재사용 가능)
     if (instance.location.type === 'WOK') {
       const burnerNumber = instance.location.burnerNumber
       updateWok(burnerNumber, {
@@ -2059,6 +2077,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         addedIngredientIds: [],
         recipeErrors: 0,
         totalSteps: 0,
+        isOn: false,
+        burnerOnSince: null,
+        isStirFrying: false,
+        stirFryStartTime: null,
+        hasWater: false,
+        waterTemperature: WOK_TEMP.AMBIENT,
+        waterBoilStartTime: null,
+        isBoiling: false,
       })
       console.log(`🧹 routeAfterPlate: 화구 ${burnerNumber}번 상태 정리 완료`)
     }
@@ -2493,11 +2519,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         },
       }))
     } else if (location.type === 'WOK') {
+      // emptyWok과 동일한 수준으로 초기화
       set((s) => ({
         woks: s.woks.map((w) =>
           w.burnerNumber === location.burnerNumber
             ? {
                 ...w,
+                state: 'DIRTY' as const,
                 currentMenu: null,
                 currentOrderId: null,
                 currentBundleId: null,
@@ -2505,6 +2533,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 totalSteps: 0,
                 addedIngredientIds: [],
                 stepStartTime: null,
+                recipeErrors: 0,
+                isOn: false,
+                burnerOnSince: null,
+                isStirFrying: false,
+                stirFryStartTime: null,
+                hasWater: false,
+                waterTemperature: WOK_TEMP.AMBIENT,
+                waterBoilStartTime: null,
+                isBoiling: false,
               }
             : w
         ),
@@ -2813,17 +2850,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
           const orderId = wok.currentOrderId
           set((s) => ({
             woks: s.woks.map((w) =>
-              w.burnerNumber === burnerNumber 
-                ? { ...w, state: 'BURNED' as const, currentMenu: null, currentOrderId: null, currentBundleId: null, currentStep: 0, stepStartTime: null, isOn: false, burnerOnSince: null, addedIngredientIds: [], recipeErrors: 0, totalSteps: 0 } 
+              w.burnerNumber === burnerNumber
+                ? { ...w, state: 'BURNED' as const, currentMenu: null, currentOrderId: null, currentBundleId: null, currentStep: 0, stepStartTime: null, isOn: false, burnerOnSince: null, addedIngredientIds: [], recipeErrors: 0, totalSteps: 0 }
                 : w
             ),
-            menuQueue: orderId 
+            menuQueue: orderId
               ? s.menuQueue.map((o) =>
                   o.id === orderId
                     ? { ...o, status: 'WAITING' as const, assignedBurner: null }
                     : o
                 )
               : s.menuQueue,
+            // BundleInstance 제거 (재배정 가능하도록)
+            bundleInstances: s.bundleInstances.filter(
+              (b) => !(b.location.type === 'WOK' && b.location.burnerNumber === burnerNumber)
+            ),
           }))
           return { ok: false, burned: true }
         }
@@ -2882,17 +2923,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const orderId = wok.currentOrderId
       set((s) => ({
         woks: s.woks.map((w) =>
-          w.burnerNumber === burnerNumber 
-            ? { ...w, state: 'BURNED' as const, currentMenu: null, currentOrderId: null, currentBundleId: null, currentStep: 0, stepStartTime: null, isOn: false, burnerOnSince: null, addedIngredientIds: [], recipeErrors: 0, totalSteps: 0 } 
+          w.burnerNumber === burnerNumber
+            ? { ...w, state: 'BURNED' as const, currentMenu: null, currentOrderId: null, currentBundleId: null, currentStep: 0, stepStartTime: null, isOn: false, burnerOnSince: null, addedIngredientIds: [], recipeErrors: 0, totalSteps: 0 }
             : w
         ),
-        menuQueue: orderId 
+        menuQueue: orderId
           ? s.menuQueue.map((o) =>
               o.id === orderId
                 ? { ...o, status: 'WAITING' as const, assignedBurner: null }
                 : o
             )
           : s.menuQueue,
+        // BundleInstance 제거 (재배정 가능하도록)
+        bundleInstances: s.bundleInstances.filter(
+          (b) => !(b.location.type === 'WOK' && b.location.burnerNumber === burnerNumber)
+        ),
       }))
       return { ok: false, burned: true }
     }
@@ -3183,6 +3228,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     // v3: 수량 검증 (required_amount만 사용)
+    // BUNDLE 타입은 required_amount 필수 — NULL이면 DB 오류
+    if (step.source_type === 'BUNDLE' && (step.required_amount == null || step.required_amount <= 0)) {
+      console.error('[applyDecoItem] required_amount 누락:', step.display_name)
+      return { success: false, message: `${step.display_name}의 필요 수량이 설정되지 않았습니다. DB를 확인하세요.`, isPositionError: false }
+    }
     const requiredAmount = step.required_amount ?? 1
     if (amount !== requiredAmount) {
       return {

@@ -68,13 +68,17 @@ export default function GridPopup({
   }
 
   const handleConfirmSelection = () => {
+    console.log('📋 [GridPopup] 담기 완료 클릭! selectedItems:', selectedItems.size, '| onSelectMultiple:', !!onSelectMultiple)
     if (selectedItems.size === 0) {
       alert('최소 1개 이상의 식재료를 선택하세요.')
       return
     }
     const selected = ingredients.filter((ing) => selectedItems.has(ing.id))
+    console.log('📋 [GridPopup] 선택된 재료:', selected.map(s => s.name))
     if (onSelectMultiple) {
       onSelectMultiple(selected)
+    } else {
+      console.error('❌ [GridPopup] onSelectMultiple 콜백이 없음!')
     }
   }
 
@@ -133,7 +137,7 @@ export default function GridPopup({
                   className={`border-2 rounded-lg hover:shadow-lg transition p-2 flex flex-col items-center justify-center relative ${
                     isSelected
                       ? 'bg-blue-100 border-blue-500 shadow-lg'
-                      : 'bg-white border-blue-300 hover:border-primary hover:bg-primary/5'
+                      : 'bg-white border-gray-200 hover:border-primary hover:bg-primary/5'
                   }`}
                   style={{
                     gridRowStart: area.rowStart,
@@ -147,10 +151,10 @@ export default function GridPopup({
                       ✓
                     </div>
                   )}
-                  <div className="font-semibold text-[#333] text-sm text-center">
+                  <div className="font-semibold text-gray-800 text-sm text-center">
                     {ing.name}
                   </div>
-                  <div className="text-xs text-gray-600 mt-1">
+                  <div className="text-xs text-gray-500 mt-1">
                     {ing.amount}
                     {ing.unit}
                   </div>
@@ -162,11 +166,11 @@ export default function GridPopup({
 
         {/* 다중 선택 모드일 때 하단 버튼 */}
         {enableMultiSelect && (
-          <div className="p-4 border-t bg-gray-50 flex justify-between items-center">
+          <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
             <button
               type="button"
               onClick={() => setSelectedItems(new Set())}
-              className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium text-sm"
+              className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium text-sm"
             >
               선택 초기화
             </button>

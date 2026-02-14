@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useSound } from '../../hooks/useSound'
 
@@ -33,6 +34,27 @@ export default function IngredientModeSelector({
   onCancel,
 }: IngredientModeSelectorProps) {
   const { playSound } = useSound()
+  const firstBtnRef = useRef<HTMLButtonElement>(null)
+
+  // 마운트 시 첫 번째 버튼 자동 포커스 (1회만)
+  // 300ms 지연: GridPopup에서 Enter로 확정 시 keyboard repeat가
+  // 새로 포커스된 버튼을 활성화하는 것을 방지
+  useEffect(() => {
+    const timer = setTimeout(() => firstBtnRef.current?.focus(), 300)
+    return () => clearTimeout(timer)
+  }, [])
+
+  // ESC 키로 닫기
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        playSound('cancel')
+        onCancel()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onCancel, playSound])
 
   return (
     <motion.div
@@ -76,12 +98,13 @@ export default function IngredientModeSelector({
         <div className="p-4 space-y-3">
           {/* 1. 웍에 투입 */}
           <button
+            ref={firstBtnRef}
             type="button"
             onClick={() => {
               playSound('confirm')
               onSelectInput()
             }}
-            className="w-full p-4 rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all group"
+            className="w-full p-4 rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all group"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform">
@@ -104,7 +127,7 @@ export default function IngredientModeSelector({
               playSound('confirm')
               onSelectSetting()
             }}
-            className="w-full p-4 rounded-xl border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-teal-50 hover:from-cyan-100 hover:to-teal-100 transition-all group"
+            className="w-full p-4 rounded-xl border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-teal-50 hover:from-cyan-100 hover:to-teal-100 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 transition-all group"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform">
@@ -127,7 +150,7 @@ export default function IngredientModeSelector({
               playSound('confirm')
               onSelectMicrowave()
             }}
-            className="w-full p-4 rounded-xl border-2 border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50 hover:from-gray-100 hover:to-slate-100 transition-all group"
+            className="w-full p-4 rounded-xl border-2 border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50 hover:from-gray-100 hover:to-slate-100 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all group"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-500 to-slate-600 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform">
@@ -150,7 +173,7 @@ export default function IngredientModeSelector({
               playSound('confirm')
               onSelectFryer()
             }}
-            className="w-full p-4 rounded-xl border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 transition-all group"
+            className="w-full p-4 rounded-xl border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 transition-all group"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform">

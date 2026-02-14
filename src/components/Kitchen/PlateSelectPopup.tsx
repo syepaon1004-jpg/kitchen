@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '../../stores/gameStore'
 import { useSound } from '../../hooks/useSound'
@@ -31,6 +31,9 @@ export default function PlateSelectPopup({
 
   const [phase, setPhase] = useState<Phase>('SELECT')
   const [selectedPlateType, setSelectedPlateType] = useState<PlateType | null>(null)
+  const firstPlateRef = useRef<HTMLButtonElement>(null)
+  const confirmBtnRef = useRef<HTMLButtonElement>(null)
+  const decoZoneBtnRef = useRef<HTMLButtonElement>(null)
 
   // instance가 없으면 early return
   if (!instance) {
@@ -41,7 +44,21 @@ export default function PlateSelectPopup({
   // instance에서 데이터 추출
   const { menuName, bundleName, isMainDish, cookingType } = instance
 
-  // ESC 키로 닫기
+  // SELECT 단계: 첫 번째 접시 버튼 자동 포커스
+  useEffect(() => {
+    if (phase === 'SELECT') {
+      setTimeout(() => firstPlateRef.current?.focus(), 100)
+    }
+  }, [phase])
+
+  // COMPLETE/SETTING_COMPLETE 단계: 데코존 버튼 자동 포커스
+  useEffect(() => {
+    if (phase === 'COMPLETE' || phase === 'SETTING_COMPLETE') {
+      setTimeout(() => decoZoneBtnRef.current?.focus(), 100)
+    }
+  }, [phase])
+
+  // ESC 키로 닫기 + Enter 키로 확인
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -52,10 +69,12 @@ export default function PlateSelectPopup({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onCancel])
 
-  const handleSelectPlate = (plateType: PlateType) => {
+  const handleSelectPlate = useCallback((plateType: PlateType) => {
     playSound('add')
     setSelectedPlateType(plateType)
-  }
+    // 선택 후 확인 버튼으로 포커스 이동
+    setTimeout(() => confirmBtnRef.current?.focus(), 50)
+  }, [playSound])
 
   const handleConfirmPlate = () => {
     if (!selectedPlateType) {
@@ -184,12 +203,14 @@ export default function PlateSelectPopup({
                     사용 가능한 접시 타입이 없습니다.
                   </div>
                 ) : (
-                  plateTypes.map((plate) => (
+                  plateTypes.map((plate, idx) => (
                     <button
                       key={plate.id}
+                      ref={idx === 0 ? firstPlateRef : undefined}
                       type="button"
+                      tabIndex={0}
                       onClick={() => handleSelectPlate(plate)}
-                      className={`w-full p-4 rounded-xl border-2 transition-all ${
+                      className={`w-full p-4 rounded-xl border-2 transition-all focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:outline-none ${
                         selectedPlateType?.id === plate.id
                           ? 'border-cyan-500 bg-cyan-50 shadow-lg ring-2 ring-cyan-200'
                           : 'border-gray-200 bg-white hover:border-cyan-300 hover:bg-cyan-50'
@@ -241,10 +262,11 @@ export default function PlateSelectPopup({
                   취소
                 </button>
                 <button
+                  ref={confirmBtnRef}
                   type="button"
                   onClick={handleConfirmPlate}
                   disabled={!selectedPlateType}
-                  className={`px-6 py-2 rounded font-bold text-sm shadow-lg ${
+                  className={`px-6 py-2 rounded font-bold text-sm shadow-lg focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:outline-none ${
                     selectedPlateType
                       ? 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
@@ -312,9 +334,10 @@ export default function PlateSelectPopup({
                   닫기
                 </button>
                 <button
+                  ref={decoZoneBtnRef}
                   type="button"
                   onClick={handleMoveToDecoZone}
-                  className="flex-1 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2"
+                  className="flex-1 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2 focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:outline-none"
                 >
                   <span>🎨</span>
                   <span>데코존으로 이동</span>
@@ -375,9 +398,10 @@ export default function PlateSelectPopup({
                   닫기
                 </button>
                 <button
+                  ref={decoZoneBtnRef}
                   type="button"
                   onClick={handleMoveToDecoZone}
-                  className="flex-1 py-3 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2"
+                  className="flex-1 py-3 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2 focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 focus:outline-none"
                 >
                   <span>🎨</span>
                   <span>데코존으로 이동</span>

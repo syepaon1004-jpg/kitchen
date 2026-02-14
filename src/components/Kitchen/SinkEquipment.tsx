@@ -53,6 +53,7 @@ export default function SinkEquipment({
       </div>
 
       <div
+        data-kitchen-sink
         className="flex-1 min-h-[60px] bg-gradient-to-b from-blue-50 to-blue-100 rounded-lg shadow-inner border border-gray-300 flex items-center justify-center relative overflow-hidden mb-2"
         style={{
           backgroundImage: `

@@ -16,7 +16,7 @@ export default function MicrowaveEquipment({
   const {
     getMicrowaveBundles,
     completeBundle,
-    moveBundle,
+    discardBundle,
   } = useGameStore()
 
   // v3.1: BundleInstance 기반 데이터
@@ -119,10 +119,10 @@ export default function MicrowaveEquipment({
     }
   }
 
-  // 취소 처리 - v3.1: moveBundle로 NOT_ASSIGNED로 이동
+  // 취소 처리 - discardBundle로 완전 제거 (주문은 WAITING으로 복귀)
   const handleCancel = () => {
     if (!currentBundle) return
-    moveBundle(currentBundle.id, { type: 'NOT_ASSIGNED' })
+    discardBundle(currentBundle.id)
   }
 
   return (
@@ -334,7 +334,7 @@ export default function MicrowaveEquipment({
                               className="py-2 px-4 rounded-lg bg-red-400 hover:bg-red-500
                                          text-white font-bold text-sm shadow-md"
                             >
-                              🗑️ 취소
+                              🗑️ 비우기
                             </button>
                           )}
                         </div>
@@ -362,6 +362,12 @@ export default function MicrowaveEquipment({
                                   {bundle.cooking.timerSeconds ?? 0}초 · {getPowerText(bundle.cooking.powerLevel)}
                                 </div>
                               </div>
+                              <button
+                                onClick={() => discardBundle(bundle.id)}
+                                className="px-2 py-1 rounded bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold transition-colors"
+                              >
+                                비우기
+                              </button>
                             </div>
                           ))}
                         </div>

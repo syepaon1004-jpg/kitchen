@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: Add mobile UI enhancements with sound system\n\n- Fix OVERHEATING state wok click bug \\(now clickable when not DIRTY/BURNED\\)\n- Add comprehensive sound system with Web Audio API\n  - 18 different sound effects for various game actions\n  - BGM system with simple melody loop\n  - Mobile-only sound to avoid desktop distraction\n- Add sound effects to all major actions:\n  - Fire on/off, stir, serve, wash, add/remove ingredients\n  - Success, error, warning, complete sounds\n  - Button clicks and menu selections\n- Enhanced mobile UX with audio feedback\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

@@ -33,9 +33,10 @@ export default function BurnerEquipment({
   const wok = woks.find((w) => w.equipmentKey === equipmentKey)
 
   const [showRadialMenu, setShowRadialMenu] = useState(false)
-  const [showPlateSelectPopup, setShowPlateSelectPopup] = useState(false)
+  const [plateSelectInstanceId, setPlateSelectInstanceId] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const { playSound } = useSound()
+  const [sinkOffset, setSinkOffset] = useState({ x: -300, y: -50 })
 
   // 웍이 없으면 렌더링하지 않음
   if (!wok) {
@@ -126,11 +127,32 @@ export default function BurnerEquipment({
     setShowRadialMenu(false)
   }
 
-  // 웍 위치에 따른 애니메이션
+  // 싱크대 위치 기반 동적 오프셋 계산
+  useEffect(() => {
+    const computeOffset = () => {
+      const sinkEl = document.querySelector('[data-kitchen-sink]') as HTMLElement | null
+      const wokEl = wokRef.current
+      if (!sinkEl || !wokEl) return
+      const sinkRect = sinkEl.getBoundingClientRect()
+      const wokRect = wokEl.getBoundingClientRect()
+      setSinkOffset({
+        x: sinkRect.left + sinkRect.width / 2 - (wokRect.left + wokRect.width / 2),
+        y: sinkRect.top + sinkRect.height / 2 - (wokRect.top + wokRect.height / 2),
+      })
+    }
+    const timer = setTimeout(computeOffset, 300)
+    window.addEventListener('resize', computeOffset)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('resize', computeOffset)
+    }
+  }, [])
+
+  // 웍 위치에 따른 애니메이션 (싱크대 위치 동적 계산)
   const wokAnimation = {
     AT_BURNER: { x: 0, y: 0 },
-    MOVING_TO_SINK: { x: -300, y: -50 },
-    AT_SINK: { x: -300, y: -50 },
+    MOVING_TO_SINK: sinkOffset,
+    AT_SINK: sinkOffset,
     MOVING_TO_BURNER: { x: 0, y: 0 },
   }
 
@@ -494,8 +516,8 @@ export default function BurnerEquipment({
             style={{
               width: isCompact ? '50%' : '52%',
               aspectRatio: '1',
-              zIndex: 2,
-              opacity: 0.5,
+              zIndex: wok.position !== 'AT_BURNER' ? 50 : 2,
+              opacity: wok.position !== 'AT_BURNER' ? 1 : 0.5,
             }}
             onClick={(e) => {
               const clickableStates: WokState[] = ['CLEAN', 'WET', 'OVERHEATING']
@@ -722,7 +744,7 @@ export default function BurnerEquipment({
 
               {wok.currentMenu && (() => {
                 // v3: recipe_bundles에서 스텝 추출
-                const { getRecipeByMenuName, getRecipeSteps } = useGameStore.getState()
+                const { getRecipeByMenuName, getRecipeSteps, getWokBundle } = useGameStore.getState()
                 const recipe = getRecipeByMenuName(wok.currentMenu!)
                 const sortedSteps = getRecipeSteps(recipe, wok.currentBundleId)
                 const isComplete = wok.currentStep >= sortedSteps.length && sortedSteps.length > 0
@@ -731,7 +753,10 @@ export default function BurnerEquipment({
                     type="button"
                     onClick={() => {
                       playSound('add')
-                      setShowPlateSelectPopup(true)
+                      const bundle = getWokBundle(burnerNumber)
+                      if (bundle) {
+                        setPlateSelectInstanceId(bundle.id)
+                      }
                     }}
                     className="px-2 py-1 rounded text-[10px] font-bold transition-all shadow-sm bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 animate-pulse"
                   >
@@ -745,32 +770,12 @@ export default function BurnerEquipment({
       </div>
 
       {/* HOT 메뉴 그릇 선택 팝업 - Portal로 body에 렌더링 (v3.1: instanceId 기반) */}
-      {showPlateSelectPopup && wok.currentMenu && wok.currentOrderId && createPortal(
-        (() => {
-          // v3.1 리팩토링: getWokBundle로 BundleInstance 조회
-          const { getWokBundle } = useGameStore.getState()
-          const bundle = getWokBundle(burnerNumber)
-
-          console.log('🍽️ 그릇 선택 팝업 - BundleInstance:', {
-            burnerNumber,
-            instanceId: bundle?.id,
-            bundleName: bundle?.bundleName,
-          })
-
-          if (!bundle) {
-            console.warn('🍽️ BundleInstance not found for burner:', burnerNumber)
-            setShowPlateSelectPopup(false)
-            return null
-          }
-
-          return (
-            <PlateSelectPopup
-              instanceId={bundle.id}
-              onComplete={() => setShowPlateSelectPopup(false)}
-              onCancel={() => setShowPlateSelectPopup(false)}
-            />
-          )
-        })(),
+      {plateSelectInstanceId && createPortal(
+        <PlateSelectPopup
+          instanceId={plateSelectInstanceId}
+          onComplete={() => setPlateSelectInstanceId(null)}
+          onCancel={() => setPlateSelectInstanceId(null)}
+        />,
         document.body
       )}
     </>

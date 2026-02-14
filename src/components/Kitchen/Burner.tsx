@@ -26,6 +26,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const wokElementRef = useRef<HTMLDivElement>(null)
   const { playSound } = useSound()
+  const [sinkOffset, setSinkOffset] = useState({ x: -300, y: -50 })
 
   // 레이디얼 메뉴가 열릴 때 위치 업데이트
   useEffect(() => {
@@ -131,11 +132,32 @@ export default function Burner({ burnerNumber }: BurnerProps) {
     setShowRadialMenu(false)
   }
 
-  // 웍 위치에 따른 애니메이션
+  // 싱크대 위치 기반 동적 오프셋 계산
+  useEffect(() => {
+    const computeOffset = () => {
+      const sinkEl = document.querySelector('[data-kitchen-sink]') as HTMLElement | null
+      const wokEl = wokElementRef.current
+      if (!sinkEl || !wokEl) return
+      const sinkRect = sinkEl.getBoundingClientRect()
+      const wokRect = wokEl.getBoundingClientRect()
+      setSinkOffset({
+        x: sinkRect.left + sinkRect.width / 2 - (wokRect.left + wokRect.width / 2),
+        y: sinkRect.top + sinkRect.height / 2 - (wokRect.top + wokRect.height / 2),
+      })
+    }
+    const timer = setTimeout(computeOffset, 300)
+    window.addEventListener('resize', computeOffset)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('resize', computeOffset)
+    }
+  }, [])
+
+  // 웍 위치에 따른 애니메이션 (싱크대 위치 동적 계산)
   const wokAnimation = {
     AT_BURNER: { x: 0, y: 0 },
-    MOVING_TO_SINK: { x: -300, y: -50 },
-    AT_SINK: { x: -300, y: -50 },
+    MOVING_TO_SINK: sinkOffset,
+    AT_SINK: sinkOffset,
     MOVING_TO_BURNER: { x: 0, y: 0 },
   }
 
@@ -192,7 +214,7 @@ export default function Burner({ burnerNumber }: BurnerProps) {
         <motion.div
           animate={wokAnimation[wok.position]}
           transition={{ duration: 0.8, ease: 'easeInOut' }}
-          className="absolute top-0 z-10 flex flex-col items-center cursor-pointer"
+          className={`absolute top-0 ${wok.position !== 'AT_BURNER' ? 'z-50' : 'z-10'} flex flex-col items-center cursor-pointer`}
           onClick={(e) => {
             console.log('🍳 웍 클릭됨!', {
               currentMenu: wok.currentMenu,
@@ -346,9 +368,9 @@ export default function Burner({ burnerNumber }: BurnerProps) {
           wok.state === 'OVERHEATING' ? 'text-white bg-orange-500/90' : 
           'text-gray-700 bg-gray-200/80'
         }`}>
-          {wok.state === 'WET' ? '💧' : 
-           wok.state === 'DIRTY' ? '🟤' : 
-           wok.state === 'BURNED' ? '💀' : 
+          {wok.state === 'WET' ? '💧' :
+           wok.state === 'DIRTY' ? '🟤' :
+           wok.state === 'BURNED' ? '💀' :
            wok.state === 'OVERHEATING' ? '⚠️' :
            '✨'}
         </div>

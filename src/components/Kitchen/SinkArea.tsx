@@ -9,9 +9,9 @@ export default function SinkArea() {
       <div className="hidden lg:block w-full p-4 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 border-2 border-gray-300 rounded-xl shadow-xl"
          style={{
            backgroundImage: `
-             linear-gradient(135deg, 
-               rgba(255,255,255,0.8) 0%, 
-               rgba(200,200,200,0.3) 50%, 
+             linear-gradient(135deg,
+               rgba(255,255,255,0.8) 0%,
+               rgba(200,200,200,0.3) 50%,
                rgba(255,255,255,0.8) 100%)
            `,
            boxShadow: 'inset 0 2px 6px rgba(255,255,255,0.9), 0 8px 20px rgba(0,0,0,0.15)'
@@ -19,7 +19,7 @@ export default function SinkArea() {
       <div className="text-xs font-bold text-gray-700 mb-3 px-2 py-1 bg-white/60 rounded text-center tracking-wider border border-gray-300">
         🚰 싱크대
       </div>
-      <div className="w-full h-32 bg-gradient-to-b from-blue-50 to-blue-100 rounded-lg shadow-inner border-2 border-gray-300 flex items-center justify-center relative overflow-hidden mb-3"
+      <div data-kitchen-sink className="w-full h-32 bg-gradient-to-b from-blue-50 to-blue-100 rounded-lg shadow-inner border-2 border-gray-300 flex items-center justify-center relative overflow-hidden mb-3"
            style={{
              backgroundImage: `
                radial-gradient(ellipse at center, rgba(255,255,255,0.4) 0%, transparent 70%),

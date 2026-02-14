@@ -114,8 +114,11 @@ export default function StorageEquipment({
 
   // 재료 선택 핸들러
   const handleSelectIngredient = (ing: any) => {
+    console.log('📦 [StorageEquipment] handleSelectIngredient:', ing.name, '| callback:', !!onIngredientSelected)
     if (onIngredientSelected) {
       onIngredientSelected(ing.raw)
+    } else {
+      console.error('❌ onIngredientSelected 콜백이 null!')
     }
     setGridPopup(null)
     setSelectedBox(null)
@@ -124,8 +127,11 @@ export default function StorageEquipment({
 
   // 다중 선택 핸들러
   const handleSelectMultiple = (selectedIngs: any[]) => {
+    console.log('📦 [StorageEquipment] handleSelectMultiple:', selectedIngs.length, '개 | callback:', !!onMultipleIngredientsSelected)
     if (onMultipleIngredientsSelected) {
       onMultipleIngredientsSelected(selectedIngs)
+    } else {
+      console.error('❌ onMultipleIngredientsSelected 콜백이 null!')
     }
     setGridPopup(null)
     setSelectedBox(null)

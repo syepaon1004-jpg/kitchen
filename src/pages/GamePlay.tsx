@@ -311,41 +311,24 @@ export default function GamePlay() {
     }
   }
 
-  // v3: inventory_id로 recipe_ingredient 매칭
+  // v3.3: 단일 식재료도 이동경로 선택 팝업 표시
   const handleSelectIngredient = (ingredient: IngredientInventory) => {
-    const woksWithMenu = woks.filter((w) => w.currentMenu)
-    if (woksWithMenu.length === 0) {
-      showToast('먼저 메뉴를 배정하세요.')
-      return
-    }
-    let maxRequired = ingredient.standard_amount
-    let matchedRecipeIngredientId: string | undefined = undefined
-
-    woksWithMenu.forEach((wok) => {
-      const reqs = getCurrentStepIngredients(wok.currentMenu!, wok.currentStep, wok.currentBundleId)
-      // v3: inventory_id로 매칭
-      const match = reqs.find((r) => r.inventory_id === ingredient.id)
-      if (match) {
-        if (match.required_amount > maxRequired) {
-          maxRequired = match.required_amount
-        }
-        if (!matchedRecipeIngredientId) {
-          matchedRecipeIngredientId = match.id
-        }
-      }
-    })
-
-    setAmountPopup({
-      type: 'ingredient',
-      ingredient,
-      targetWok: 0,
-      requiredAmount: maxRequired,
-      requiredUnit: ingredient.standard_unit,
-      recipeIngredientId: matchedRecipeIngredientId, // v3: 매칭된 recipe_ingredient.id 저장
+    console.log('🎯 [GamePlay] handleSelectIngredient 호출:', ingredient.ingredient_master?.ingredient_name ?? ingredient.id)
+    setModeSelectorPopup({
+      ingredients: [{
+        id: ingredient.id,
+        name: ingredient.ingredient_master?.ingredient_name ?? ingredient.id,
+        sku: ingredient.sku_code ?? '',
+        amount: ingredient.standard_amount,
+        unit: ingredient.standard_unit,
+        raw: ingredient,
+        ingredientMasterId: ingredient.ingredient_master_id,
+      }],
     })
   }
 
   const handleSelectMultipleIngredients = (selectedIngredients: any[]) => {
+    console.log('🎯 [GamePlay] handleSelectMultipleIngredients 호출:', selectedIngredients.length, '개', selectedIngredients.map(i => i.name))
     // 모드 선택 팝업 표시 (투입/세팅존 선택)
     setModeSelectorPopup({
       ingredients: selectedIngredients.map((ing) => ({
@@ -366,9 +349,8 @@ export default function GamePlay() {
 
     const woksWithMenu = woks.filter((w) => w.currentMenu)
     if (woksWithMenu.length === 0) {
-      showToast('먼저 메뉴를 배정하세요.')
-      setModeSelectorPopup(null)
-      return
+      showToast('화구에 배정된 메뉴가 없습니다. 먼저 메뉴를 화구에 배정하세요.')
+      return // 모드 선택 팝업 유지 (다른 옵션 선택 가능)
     }
 
     // 기존 배치 입력 팝업으로 전환
@@ -409,6 +391,15 @@ export default function GamePlay() {
   // 튀김기 모드 선택 시
   const handleSelectFryerMode = () => {
     if (!modeSelectorPopup) return
+
+    const { fryerState: fs } = useGameStore.getState()
+    const activeFryerBaskets = fs.baskets.filter(
+      (b) => b.orderId && b.status === 'ASSIGNED' && !b.isSubmerged
+    )
+    if (activeFryerBaskets.length === 0) {
+      showToast('튀김기 바스켓에 배정된 메뉴가 없습니다. 먼저 메뉴를 바스켓에 배정하세요.')
+      return // 모드 선택 팝업 유지 (다른 옵션 선택 가능)
+    }
 
     setFryerSetupPopup({
       ingredients: modeSelectorPopup.ingredients,
@@ -746,11 +737,9 @@ export default function GamePlay() {
           onConfirm={(timerSeconds, power, orderId, bundleId, ingredientAmounts) => {
             console.log('📡 전자레인지 설정:', { timerSeconds, power, orderId, bundleId, ingredientAmounts })
 
-            // v3.1 리팩토링: 통합 함수 사용
             const result = assignBundle(orderId, bundleId, { type: 'MICROWAVE' }, { timerSeconds, powerLevel: power })
 
             if (result.success && result.instanceId) {
-              // 재료 정보 별도 설정
               updateBundleInstance(result.instanceId, { ingredients: ingredientAmounts })
 
               const powerLabel = power === 'LOW' ? '약' : power === 'MEDIUM' ? '중' : '강'
@@ -927,7 +916,7 @@ export default function GamePlay() {
         <button
           type="button"
           onClick={openDecoZone}
-          className="fixed bottom-20 right-4 z-30 w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-2xl cursor-pointer transition-transform hover:scale-110 active:scale-95 bg-gradient-to-br from-purple-400 to-pink-500 hover:from-purple-500 hover:to-pink-600 border-2 border-white/30"
+          className="fixed bottom-20 right-4 z-30 w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-2xl cursor-pointer transition-transform hover:scale-110 active:scale-95 bg-gradient-to-br from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 border-2 border-purple-400/50"
           title="데코존으로 이동"
         >
           🎨

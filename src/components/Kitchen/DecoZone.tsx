@@ -577,16 +577,25 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
       </div>
 
       {/* v3: 수량 입력 팝업 - step 사용 */}
-      {amountPopup && selectedDecoIngredient && (
-        <DecoAmountPopup
-          ingredientName={selectedDecoIngredient.name}
-          minAmount={amountPopup.step.required_amount ?? 1}
-          maxAmount={amountPopup.step.required_amount ?? 1}
-          unit={amountPopup.step.required_unit ?? 'g'}
-          onConfirm={handleAmountConfirm}
-          onCancel={handleAmountCancel}
-        />
-      )}
+      {amountPopup && selectedDecoIngredient && (() => {
+        const step = amountPopup.step
+        const isBundleType = step.source_type === 'BUNDLE'
+        // BUNDLE 타입: 정확한 required_amount만 허용 (min=max=required_amount)
+        // DECO_ITEM/SETTING_ITEM: 기존 로직 유지
+        const exactAmount = step.required_amount ?? 1
+        const minAmt = isBundleType ? exactAmount : (step.required_amount ?? 1)
+        const maxAmt = isBundleType ? exactAmount : (selectedDecoIngredient.remainingAmount ?? step.required_amount ?? 1)
+        return (
+          <DecoAmountPopup
+            ingredientName={selectedDecoIngredient.name}
+            minAmount={minAmt}
+            maxAmount={maxAmt}
+            unit={selectedDecoIngredient.unit || step.required_unit || 'g'}
+            onConfirm={handleAmountConfirm}
+            onCancel={handleAmountCancel}
+          />
+        )
+      })()}
 
       {/* 토스트 메시지 (순서 오류 등 피드백) */}
       {toast && (
