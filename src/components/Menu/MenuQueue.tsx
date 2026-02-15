@@ -273,20 +273,20 @@ function MobileMenuCard({
   // MIXED가 아닌 경우 기존 동작
   if (!isMixed) {
     const hasNestedButtons = isFryingOnly && order.status === 'WAITING' && emptyBasketsCount > 0
-    const cardClassName = `min-w-[90px] p-2 rounded-lg shadow-md transition-all ${
+    const cardClassName = `min-w-[90px] p-2 rounded-lg shadow-sm transition-all ${
       selectedMenuId === order.id ? 'ring-2 ring-blue-500 scale-105' : ''
     } ${
       order.status === 'COMPLETED'
-        ? 'bg-green-200 border border-green-500'
+        ? 'bg-white border border-gray-200 border-l-4 border-l-green-500'
         : order.status === 'COOKING'
-          ? 'bg-orange-200 border border-orange-500'
+          ? 'bg-white border border-gray-200 border-l-4 border-l-orange-500'
           : isColdOnly
-            ? 'bg-cyan-100 border border-cyan-500'
+            ? 'bg-white border border-gray-200 border-l-4 border-l-cyan-500'
             : isFryingOnly
-              ? 'bg-amber-100 border border-amber-500'
+              ? 'bg-white border border-gray-200 border-l-4 border-l-amber-500'
               : isMicrowaveOnly
-                ? 'bg-gray-100 border border-gray-500'
-                : 'bg-yellow-200 border border-yellow-500'
+                ? 'bg-white border border-gray-200 border-l-4 border-l-gray-500'
+                : 'bg-white border border-gray-200 border-l-4 border-l-yellow-500'
     } ${!canSelect ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`
 
     const handleCardClick = (e: React.MouseEvent) => {
@@ -338,9 +338,6 @@ function MobileMenuCard({
         {isFryingOnly && order.status === 'WAITING' && emptyBasketsCount === 0 && (
           <div className="text-[8px] text-amber-700 mt-1 font-medium opacity-60">🍟 바스켓 없음</div>
         )}
-        {isMicrowaveOnly && order.status === 'WAITING' && (
-          <div className="text-[8px] text-gray-600 mt-1 font-medium">📡 전자레인지 (준비중)</div>
-        )}
       </>
     )
 
@@ -368,9 +365,9 @@ function MobileMenuCard({
           e.stopPropagation()
           onToggleExpand()
         }}
-        className={`min-w-[100px] p-2 rounded-lg shadow-md transition-all ${
-          isExpanded ? 'ring-2 ring-purple-500' : ''
-        } bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-400 cursor-pointer`}
+        className={`min-w-[100px] p-2 rounded-lg shadow-sm transition-all ${
+          isExpanded ? 'border-purple-400' : ''
+        } bg-white border border-gray-200 border-l-4 border-l-purple-500 cursor-pointer`}
       >
         <div className="flex items-center justify-between gap-1">
           <div className="font-bold text-[10px] text-gray-800 truncate flex-1">{order.menuName}</div>
@@ -416,13 +413,13 @@ function MobileMenuCard({
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.8, opacity: 0 }}
-                  className={`min-w-[80px] p-2 rounded-lg shadow-md border-2 ${
+                  className={`min-w-[80px] p-2 rounded-lg shadow-sm border ${
                     isHot
                       ? 'bg-orange-50 border-orange-300'
                       : isFrying
                         ? 'bg-amber-50 border-amber-300'
                         : isMicrowave
-                          ? 'bg-gray-50 border-gray-300'
+                          ? 'bg-indigo-50 border-gray-300'
                           : isPlateSelected
                             ? 'bg-green-50 border-green-300'
                             : 'bg-cyan-50 border-cyan-300'
@@ -434,9 +431,11 @@ function MobileMenuCard({
                       {bundle.bundle_name}
                     </span>
                   </div>
-                  <div className="text-[8px] text-gray-500 mb-1">
-                    {getLocationStatusIcon(locationType)} {getLocationStatusText(locationType)}
-                  </div>
+                  {!isMicrowave && (
+                    <div className="text-[8px] text-gray-500 mb-1">
+                      {getLocationStatusIcon(locationType)} {getLocationStatusText(locationType)}
+                    </div>
+                  )}
                   {/* HOT: 화구 배정 */}
                   {canAction && isHot && (
                     <div className="flex gap-0.5">
@@ -578,19 +577,19 @@ function MenuCard({
 
   // 상태별 스타일
   const getStatusClass = () => {
-    if (order.status === 'COMPLETED') return 'bg-green-200 border-2 border-green-500'
-    if (order.status === 'COOKING') return 'bg-orange-200 border-2 border-orange-500 animate-pulse'
-    if (isColdOnly) return 'bg-cyan-100 border-2 border-cyan-400'
-    if (isFryingOnly) return 'bg-amber-100 border-2 border-amber-400'
-    if (isMicrowaveOnly) return 'bg-gray-100 border-2 border-gray-400'
-    if (isMixed) return 'bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-purple-400'
-    return 'bg-yellow-200 border-2 border-yellow-500'
+    if (order.status === 'COMPLETED') return 'bg-white border border-gray-200 border-l-4 border-l-green-500 shadow-sm'
+    if (order.status === 'COOKING') return 'bg-white border border-gray-200 border-l-4 border-l-orange-500 shadow-sm'
+    if (isColdOnly) return 'bg-white border border-gray-200 border-l-4 border-l-cyan-500 shadow-sm'
+    if (isFryingOnly) return 'bg-white border border-gray-200 border-l-4 border-l-amber-500 shadow-sm'
+    if (isMicrowaveOnly) return 'bg-white border border-gray-200 border-l-4 border-l-gray-500 shadow-sm'
+    if (isMixed) return 'bg-white border border-gray-200 border-l-4 border-l-purple-500 shadow-sm'
+    return 'bg-white border border-gray-200 border-l-4 border-l-yellow-500 shadow-sm'
   }
 
   // MIXED가 아닌 경우 기존 레이아웃
   if (!isMixed) {
     return (
-      <div className={`w-44 min-w-[176px] p-4 rounded-lg shadow-lg ${getStatusClass()} transition`}>
+      <div className={`w-44 min-w-[176px] p-4 rounded-lg shadow-sm ${getStatusClass()} transition`}>
         <div className="flex items-center justify-between gap-2">
           <div className="font-bold text-sm text-[#333] truncate flex-1">{order.menuName}</div>
           {bundleInfo.type !== 'SINGLE' && (
@@ -639,7 +638,7 @@ function MenuCard({
           <button
             type="button"
             onClick={() => onSelectPlate(order.id, order.menuName, recipeId)}
-            className="w-full mt-2 py-2 px-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold text-xs shadow-md flex items-center justify-center gap-1"
+            className="w-full mt-2 py-2 px-3 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1"
           >
             <span>🍽️</span>
             <span>접시 선택</span>
@@ -671,12 +670,6 @@ function MenuCard({
           </div>
         )}
 
-        {/* MICROWAVE 메뉴: 전자레인지 (준비중) */}
-        {order.status === 'WAITING' && isMicrowaveOnly && (
-          <div className="w-full mt-2 py-2 px-3 rounded-lg bg-gray-200 text-gray-600 font-bold text-xs text-center opacity-70">
-            📡 전자레인지 (준비중)
-          </div>
-        )}
       </div>
     )
   }
@@ -686,7 +679,7 @@ function MenuCard({
     <div className="flex items-stretch gap-2">
       {/* 메인 카드 */}
       <div
-        className={`min-w-[176px] p-4 rounded-lg shadow-lg ${getStatusClass()} transition cursor-pointer`}
+        className={`min-w-[176px] p-4 rounded-lg shadow-sm ${getStatusClass()} transition cursor-pointer`}
         onClick={onToggleExpand}
       >
         <div className="flex items-center justify-between gap-2">
@@ -772,13 +765,13 @@ function MenuCard({
                   animate={{ scale: 1, opacity: 1, x: 0 }}
                   exit={{ scale: 0.8, opacity: 0, x: -20 }}
                   transition={{ duration: 0.2 }}
-                  className={`w-36 min-w-[144px] p-3 rounded-lg shadow-lg border-2 ${
+                  className={`w-36 min-w-[144px] p-3 rounded-lg shadow-sm border ${
                     isHot
                       ? 'bg-orange-50 border-orange-300'
                       : isFrying
                         ? 'bg-amber-50 border-amber-300'
                         : isMicrowave
-                          ? 'bg-gray-50 border-gray-300'
+                          ? 'bg-indigo-50 border-gray-300'
                           : isPlateSelected
                             ? 'bg-green-50 border-green-400'
                             : 'bg-cyan-50 border-cyan-300'
@@ -795,18 +788,20 @@ function MenuCard({
                     </div>
                   </div>
 
-                  {/* 상태 표시 */}
-                  <div className={`text-xs mb-2 px-2 py-1 rounded ${
-                    locationType === 'NOT_ASSIGNED'
-                      ? 'bg-gray-100 text-gray-600'
-                      : locationType === 'WOK' || locationType === 'FRYER' || locationType === 'MICROWAVE'
-                        ? 'bg-orange-100 text-orange-700'
-                        : locationType === 'DECO_MAIN' || locationType === 'DECO_SETTING'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-purple-100 text-purple-700'
-                  }`}>
-                    {getLocationStatusIcon(locationType)} {getLocationStatusText(locationType)}
-                  </div>
+                  {/* 상태 표시 (전자레인지 묶음은 표시하지 않음) */}
+                  {!isMicrowave && (
+                    <div className={`text-xs mb-2 px-2 py-1 rounded ${
+                      locationType === 'NOT_ASSIGNED'
+                        ? 'bg-indigo-100 text-gray-600'
+                        : locationType === 'WOK' || locationType === 'FRYER'
+                          ? 'bg-orange-100 text-orange-700'
+                          : locationType === 'DECO_MAIN' || locationType === 'DECO_SETTING'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-purple-100 text-purple-700'
+                    }`}>
+                      {getLocationStatusIcon(locationType)} {getLocationStatusText(locationType)}
+                    </div>
+                  )}
 
                   {/* HOT: 화구 배정 버튼 */}
                   {canAction && isHot && (
@@ -845,7 +840,7 @@ function MenuCard({
                           onSelectPlate(order.id, order.menuName, recipeId, bundle.id)
                         }
                       }}
-                      className="w-full py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold text-xs shadow-md flex items-center justify-center gap-1"
+                      className="w-full py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1"
                     >
                       <span>🍽️</span>
                       <span>접시 선택</span>
@@ -879,16 +874,10 @@ function MenuCard({
                     </div>
                   )}
 
-                  {/* MICROWAVE: 전자레인지 (준비중) */}
-                  {canAction && isMicrowave && (
-                    <div className="w-full py-2 rounded-lg bg-gray-200 text-gray-600 font-bold text-xs text-center opacity-70">
-                      📡 전자레인지 (준비중)
-                    </div>
-                  )}
 
                   {/* COLD 묶음 접시 선택 완료 표시 */}
                   {isCold && isPlateSelected && (
-                    <div className="w-full py-2 rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 text-white font-bold text-xs shadow-md flex items-center justify-center gap-1">
+                    <div className="w-full py-2 rounded-lg bg-green-500 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1">
                       <span>✅</span>
                       <span>접시 선택 완료</span>
                     </div>

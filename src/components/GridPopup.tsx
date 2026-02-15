@@ -95,10 +95,10 @@ export default function GridPopup({
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-2xl overflow-hidden max-w-4xl"
+        className="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-4xl"
       >
         {/* 헤더 */}
-        <div className="p-4 border-b bg-blue-50 flex justify-between items-center">
+        <div className="p-4 border-b bg-indigo-50 flex justify-between items-center">
           <h3 className="font-bold text-[#333] text-lg">{title}</h3>
           <div className="flex items-center gap-2">
             {enableMultiSelect && selectedItems.size > 0 && (
@@ -109,7 +109,7 @@ export default function GridPopup({
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1 rounded bg-gray-300 hover:bg-gray-400 font-medium text-sm"
+              className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium text-sm"
             >
               닫기
             </button>
@@ -117,7 +117,7 @@ export default function GridPopup({
         </div>
 
         {/* 그리드 영역 */}
-        <div className="p-6 bg-gray-50 overflow-auto max-h-[70vh]">
+        <div className="p-6 bg-indigo-50 overflow-auto max-h-[70vh]">
           <div
             className="grid gap-2 mx-auto"
             style={{
@@ -134,7 +134,7 @@ export default function GridPopup({
                   key={ing.id}
                   type="button"
                   onClick={() => handleItemClick(ing)}
-                  className={`border-2 rounded-lg hover:shadow-lg transition p-2 flex flex-col items-center justify-center relative ${
+                  className={`border rounded-lg hover:shadow-lg transition p-2 flex flex-col items-center justify-center relative ${
                     isSelected
                       ? 'bg-blue-100 border-blue-500 shadow-lg'
                       : 'bg-white border-gray-200 hover:border-primary hover:bg-primary/5'
@@ -166,11 +166,11 @@ export default function GridPopup({
 
         {/* 다중 선택 모드일 때 하단 버튼 */}
         {enableMultiSelect && (
-          <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+          <div className="p-4 border-t border-gray-200 bg-indigo-50 flex justify-between items-center">
             <button
               type="button"
               onClick={() => setSelectedItems(new Set())}
-              className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium text-sm"
+              className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium text-sm"
             >
               선택 초기화
             </button>
@@ -178,9 +178,9 @@ export default function GridPopup({
               type="button"
               onClick={handleConfirmSelection}
               disabled={selectedItems.size === 0}
-              className={`px-6 py-2 rounded font-bold text-sm shadow-lg transition-all ${
+              className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${
                 selectedItems.size > 0
-                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
+                  ? 'bg-blue-500 hover:bg-blue-600 text-white'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >

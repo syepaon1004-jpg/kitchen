@@ -69,18 +69,18 @@ export default function IngredientModeSelector({
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-2xl overflow-hidden max-w-md w-full"
+        className="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-md w-full"
       >
         {/* 헤더 */}
-        <div className="p-4 border-b bg-gradient-to-r from-indigo-500 to-purple-600">
+        <div className="p-4 border-b bg-indigo-500 rounded-t-2xl">
           <h3 className="font-bold text-white text-lg">재료 사용 방법 선택</h3>
-          <p className="text-indigo-100 text-xs mt-1">
+          <p className="text-white/80 text-xs mt-1">
             선택한 {ingredients.length}개 재료를 어디에 사용할까요?
           </p>
         </div>
 
         {/* 선택된 재료 목록 */}
-        <div className="p-4 bg-gray-50 border-b">
+        <div className="p-4 bg-indigo-50 border-b">
           <div className="text-xs font-medium text-gray-500 mb-2">선택한 재료</div>
           <div className="flex flex-wrap gap-2">
             {ingredients.map((ing) => (
@@ -104,7 +104,7 @@ export default function IngredientModeSelector({
               playSound('confirm')
               onSelectInput()
             }}
-            className="w-full p-4 rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all group"
+            className="w-full p-4 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all group"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform">
@@ -127,10 +127,10 @@ export default function IngredientModeSelector({
               playSound('confirm')
               onSelectSetting()
             }}
-            className="w-full p-4 rounded-xl border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-teal-50 hover:from-cyan-100 hover:to-teal-100 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 transition-all group"
+            className="w-full p-4 rounded-xl border border-cyan-200 bg-cyan-50 hover:bg-cyan-100 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 transition-all group"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-full bg-cyan-500 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform">
                 📦
               </div>
               <div className="text-left flex-1">
@@ -150,10 +150,10 @@ export default function IngredientModeSelector({
               playSound('confirm')
               onSelectMicrowave()
             }}
-            className="w-full p-4 rounded-xl border-2 border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50 hover:from-gray-100 hover:to-slate-100 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all group"
+            className="w-full p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all group"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-500 to-slate-600 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-full bg-gray-500 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform">
                 📡
               </div>
               <div className="text-left flex-1">
@@ -173,10 +173,10 @@ export default function IngredientModeSelector({
               playSound('confirm')
               onSelectFryer()
             }}
-            className="w-full p-4 rounded-xl border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 transition-all group"
+            className="w-full p-4 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 transition-all group"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-full bg-amber-500 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform">
                 🍟
               </div>
               <div className="text-left flex-1">
@@ -191,7 +191,7 @@ export default function IngredientModeSelector({
         </div>
 
         {/* 취소 버튼 */}
-        <div className="p-4 border-t bg-gray-50">
+        <div className="p-4 border-t bg-indigo-50">
           <button
             type="button"
             onClick={() => {

@@ -36,42 +36,18 @@ export default function SinkEquipment({
 
   return (
     <div
-      className="w-full h-full bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 rounded-lg p-2 flex flex-col"
-      style={{
-        backgroundImage: `
-          linear-gradient(135deg,
-            rgba(255,255,255,0.8) 0%,
-            rgba(200,200,200,0.3) 50%,
-            rgba(255,255,255,0.8) 100%)
-        `,
-        boxShadow: 'inset 0 2px 6px rgba(255,255,255,0.9), 0 4px 12px rgba(0,0,0,0.15)',
-      }}
+      className="bg-white rounded-xl shadow-sm border border-gray-200 w-full h-full flex flex-col p-2"
     >
       {/* 상단: 싱크대 시각화 */}
-      <div className="text-[10px] font-bold text-gray-600 mb-1 px-1 py-0.5 bg-white/60 rounded text-center border border-gray-300">
+      <div className="text-[10px] font-bold text-gray-600 bg-indigo-50 rounded-lg text-center py-0.5 mb-1">
         {displayName}
       </div>
 
       <div
         data-kitchen-sink
-        className="flex-1 min-h-[60px] bg-gradient-to-b from-blue-50 to-blue-100 rounded-lg shadow-inner border border-gray-300 flex items-center justify-center relative overflow-hidden mb-2"
-        style={{
-          backgroundImage: `
-            radial-gradient(ellipse at center, rgba(255,255,255,0.4) 0%, transparent 70%),
-            linear-gradient(to bottom, #eff6ff, #dbeafe, #bfdbfe)
-          `,
-          boxShadow: 'inset 0 3px 8px rgba(0,0,0,0.1), inset 0 -2px 6px rgba(255,255,255,0.5)',
-        }}
+        className="bg-blue-50 rounded-lg shadow-inner border border-gray-200 flex-1 flex items-center justify-center relative overflow-hidden mb-2"
       >
         {/* 수도꼭지 */}
-        <div
-          className="absolute top-1 right-1 w-6 h-6 bg-gray-300 rounded-full shadow-md border border-gray-400"
-          style={{
-            backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(150,150,150,0.4) 100%)',
-          }}
-        >
-          <div className="absolute inset-0.5 bg-gray-200 rounded-full"></div>
-        </div>
         <div className="text-3xl lg:text-4xl filter drop-shadow-lg">💧</div>
       </div>
 
@@ -88,7 +64,7 @@ export default function SinkEquipment({
               <button
                 key={burner.equipment_key}
                 onClick={() => wok && handleWash(wok.burnerNumber)}
-                className="min-h-[36px] lg:min-h-[32px] py-1 px-2 rounded text-[10px] lg:text-xs font-bold transition-all shadow bg-gradient-to-r from-teal-400 to-cyan-500 hover:from-teal-500 hover:to-cyan-600 text-white hover:shadow-md active:scale-95"
+                className="min-h-[36px] lg:min-h-[32px] py-1 px-2 text-[10px] lg:text-xs font-bold transition-all bg-teal-500 hover:bg-teal-600 text-white rounded-lg shadow-sm active:scale-95"
               >
                 {burner.display_name} 🧼
               </button>

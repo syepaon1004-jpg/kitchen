@@ -22,6 +22,7 @@ interface AmountPopupState {
   plateId: string
   position: number
   step: DecoStep // v3: rule → step
+  sourceInstanceId?: string // BUNDLE 합치기 시 소스 번들 인스턴스 ID
 }
 
 /**
@@ -144,8 +145,8 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
     playSound('add')
     // v3.3: ingredients 배열에서 수량/단위 추출 (첫 번째 재료 기준)
     const firstIngredient = instance.ingredients?.[0]
-    const totalAmount = firstIngredient?.amount ?? 1
-    const unit = firstIngredient?.unit ?? '인분'
+    const totalAmount = instance.availableAmount ?? (firstIngredient?.amount ?? 1)
+    const unit = firstIngredient?.unit ?? 'ea'
 
     const selected: SelectedDecoIngredient = {
       type: 'SETTING_ITEM',
@@ -197,9 +198,21 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
     // v3: 수량 입력 필요 여부 확인 (required_amount만 사용)
     const requiredAmount = step.required_amount ?? 1
 
-    // v3.3 Fix: SETTING_ITEM은 항상 수량 팝업 표시 (BUNDLE 타입 스텝이어도)
-    // 육회 300g, 냉면육수 4개 등 수량 선택이 필요한 경우
+    // v3.5: SETTING_ITEM 분기 — BUNDLE vs non-BUNDLE
     if (selectedDecoIngredient.type === 'SETTING_ITEM') {
+      if (step.source_type === 'BUNDLE') {
+        // BUNDLE 합치기: 수량 팝업 표시 (확인 시 mergeBundle 호출)
+        const sourceInstanceId = selectedDecoIngredient.instanceId
+        if (!sourceInstanceId) {
+          playSound('error')
+          showCellFlash(plateId, position, 'error')
+          console.warn('❌ BUNDLE 합치기: instanceId 없음')
+          return
+        }
+        setAmountPopup({ plateId, position, step, sourceInstanceId })
+        return
+      }
+      // non-BUNDLE SETTING_ITEM: 기존 수량 팝업 유지
       setAmountPopup({ plateId, position, step })
       return
     }
@@ -249,7 +262,24 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
   // 수량 팝업 확인
   const handleAmountConfirm = (amount: number) => {
     if (!amountPopup) return
-    applyDecoWithAmount(amountPopup.plateId, amountPopup.position, amount)
+
+    if (amountPopup.sourceInstanceId) {
+      // BUNDLE 합치기: mergeBundle에 유저 선택 수량 전달
+      const result = mergeBundle(amountPopup.plateId, amountPopup.sourceInstanceId, amount)
+      if (result.success) {
+        playSound('confirm')
+        showCellFlash(amountPopup.plateId, amountPopup.position, 'success')
+        clearDecoSelection()
+      } else {
+        playSound('error')
+        showCellFlash(amountPopup.plateId, amountPopup.position, 'error')
+        showToast(result.message)
+      }
+    } else {
+      // 일반 데코 아이템
+      applyDecoWithAmount(amountPopup.plateId, amountPopup.position, amount)
+    }
+
     setAmountPopup(null)
   }
 
@@ -260,31 +290,30 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
   }
 
   return (
-    <div className="w-full h-full bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 flex flex-col overflow-hidden">
+    <div className="w-full h-full bg-indigo-50 flex flex-col overflow-hidden">
       {/* ===== 상단 바 ===== */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white/90 border-b-2 border-purple-300 shadow-md shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-sm shrink-0">
         <button
           type="button"
           onClick={handleBack}
-          className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg font-bold shadow-lg hover:shadow-xl hover:from-orange-600 hover:to-red-700 transition-all active:scale-95 flex items-center gap-2"
+          className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold shadow-sm transition-all active:scale-95 flex items-center gap-2"
         >
           <span>←</span>
-          <span>🔥 주방으로</span>
+          <span>주방으로</span>
         </button>
 
-        <h2 className="text-lg font-bold text-purple-800 flex items-center gap-2">
-          <span>🎨</span>
+        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
           <span>데코존</span>
         </h2>
 
-        <div className="text-sm font-medium text-purple-600 bg-purple-100 px-3 py-1.5 rounded-lg">
+        <div className="text-sm font-medium text-gray-600 bg-indigo-100 px-3 py-1.5 rounded-lg">
           {completedCount}/{decoPlates.length} 완성
         </div>
       </div>
 
       {/* 과열 경고 (신입 난이도) */}
       {level === 'BEGINNER' && overheatingWoks.length > 0 && (
-        <div className="mx-4 mt-2 p-2 bg-red-500 text-white rounded-lg shadow-lg animate-pulse flex items-center gap-2 shrink-0">
+        <div className="mx-4 mt-2 p-2 bg-red-500 text-white rounded-lg shadow-sm animate-pulse flex items-center gap-2 shrink-0">
           <span className="text-xl">⚠️</span>
           <div className="text-sm">
             <span className="font-bold">웍 과열!</span> 화구 {overheatingWoks.map((w) => w.burnerNumber).join(', ')}번
@@ -295,7 +324,7 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
       {/* ===== [DEBUG] 첫 번째 접시 데코 규칙 ===== */}
       {/* v3: 디버그 정보 - decoSteps/decoIngredients 사용 */}
       {decoPlates.length > 0 && (
-        <div className="mx-4 mt-2 p-3 bg-yellow-100 border-2 border-yellow-400 rounded-lg shadow text-xs shrink-0 max-h-48 overflow-auto">
+        <div className="mx-4 mt-2 p-3 bg-yellow-50 border border-yellow-300 rounded-lg shadow-sm text-xs shrink-0 max-h-48 overflow-auto">
           <div className="font-bold text-yellow-800 mb-2">[DEBUG] 첫 번째 접시 데코 정보 (v3)</div>
           <div className="text-gray-700 mb-1">
             <strong>메뉴:</strong> {decoPlates[0].menuName} | <strong>recipe_id:</strong> {decoPlates[0].recipeId}
@@ -337,7 +366,7 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
       )}
 
       {/* ===== 상단 재료 영역 (2열) ===== */}
-      <div className="grid grid-cols-2 gap-3 p-3 bg-white/60 border-b border-purple-200 shrink-0">
+      <div className="grid grid-cols-2 gap-3 p-3 bg-white border-b border-gray-200 shrink-0">
         {/* 좌측: 상시배치 재료 */}
         <div>
           <div className="text-xs font-bold text-gray-600 mb-2 flex items-center gap-1">
@@ -385,20 +414,24 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
               settingInstances.map((instance) => {
                 const displayName = instance.bundleName ?? instance.menuName
                 const isSelected = selectedDecoIngredient?.id === instance.bundleId
-                // v3.3: ingredients에서 실제 수량/단위 추출
+                // v3.4: availableAmount로 잔여 합치기 수량 표시
                 const firstIngredient = instance.ingredients?.[0]
-                const amount = firstIngredient?.amount ?? 1
-                const unit = firstIngredient?.unit ?? '인분'
-                const amountText = `${amount}${unit}`
+                const unit = firstIngredient?.unit ?? 'ea'
+                const availAmount = instance.availableAmount ?? (firstIngredient?.amount ?? 1)
+                const originalAmount = firstIngredient?.amount ?? 1
+                const isPartial = availAmount < originalAmount
+                const amountText = isPartial
+                  ? `${availAmount}${unit} 남음 (${originalAmount}${unit} 중)`
+                  : `${availAmount}${unit}`
                 return (
                   <div key={instance.id} className="relative group">
                     <button
                       type="button"
                       onClick={() => handleSettingBundleClick(instance)}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium shadow-md transition-all ${
+                      className={`px-3 py-2 rounded-lg text-xs font-medium shadow-sm transition-all ${
                         isSelected
                           ? 'bg-teal-500 text-white ring-2 ring-teal-300'
-                          : 'bg-teal-100 text-teal-700 hover:bg-teal-200 border-2 border-teal-300'
+                          : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-300'
                       }`}
                     >
                       <div className="flex items-center gap-1">
@@ -406,7 +439,7 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
                         <span>{displayName}</span>
                       </div>
                       <div className="text-[10px] mt-0.5">
-                        {amountText} (조리완료)
+                        {amountText} {isPartial ? '' : '(조리완료)'}
                       </div>
                     </button>
                     {/* 다시 넣기 버튼 - v3.1: moveBundle로 NOT_ASSIGNED 이동 */}
@@ -433,7 +466,7 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
       {/* ===== 메인 영역 (좌측 패널 + 우측 접시) ===== */}
       <div className="flex-1 flex overflow-hidden">
         {/* 좌측 패널: 선택한 재료 */}
-        <div className="w-32 shrink-0 bg-white/80 border-r border-purple-200 p-3 flex flex-col">
+        <div className="w-32 shrink-0 bg-white border-r border-gray-200 p-3 flex flex-col">
           <div className="text-xs font-bold text-gray-600 mb-2">선택한 재료</div>
 
           {selectedDecoIngredient ? (
@@ -485,7 +518,7 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
         <div className="flex-1 p-4 overflow-auto">
           {/* 합치기 모드 안내 */}
           {mergeMode && selectedSourcePlateId && (
-            <div className="mb-3 p-2 bg-blue-100 border-2 border-blue-400 rounded-lg flex items-center justify-between">
+            <div className="mb-3 p-2 bg-blue-50 border border-blue-300 rounded-lg flex items-center justify-between">
               <div className="text-sm text-blue-800">
                 <span className="font-bold">🔗 합치기 모드:</span>{' '}
                 메인 접시(파란 테두리)를 클릭하세요
@@ -562,9 +595,9 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
                 return (
                   <div
                     key={`empty-${slotIndex}`}
-                    className="aspect-square border-2 border-dashed border-purple-300 rounded-xl flex items-center justify-center bg-white/30"
+                    className="aspect-square border border-dashed border-gray-300 rounded-xl flex items-center justify-center bg-white/50"
                   >
-                    <div className="text-center text-purple-300">
+                    <div className="text-center text-gray-300">
                       <div className="text-3xl">🥣</div>
                       <div className="text-xs mt-1">빈 슬롯</div>
                     </div>
@@ -579,17 +612,33 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
       {/* v3: 수량 입력 팝업 - step 사용 */}
       {amountPopup && selectedDecoIngredient && (() => {
         const step = amountPopup.step
-        const isBundleType = step.source_type === 'BUNDLE'
-        // BUNDLE 타입: 정확한 required_amount만 허용 (min=max=required_amount)
-        // DECO_ITEM/SETTING_ITEM: 기존 로직 유지
-        const exactAmount = step.required_amount ?? 1
-        const minAmt = isBundleType ? exactAmount : (step.required_amount ?? 1)
-        const maxAmt = isBundleType ? exactAmount : (selectedDecoIngredient.remainingAmount ?? step.required_amount ?? 1)
+        const requiredAmount = step.required_amount ?? 1
+        const minAmt = 1
+        let maxAmt: number
+        let defaultAmt: number
+
+        if (amountPopup.sourceInstanceId) {
+          // BUNDLE: 소스 가용량과 남은 필요량 중 작은 값이 최대
+          const sourceAvailable = selectedDecoIngredient.remainingAmount ?? 1
+          const decoMainInstances = getDecoMainPlates()
+          const targetInstance = decoMainInstances.find((b) => b.id === amountPopup.plateId)
+          const alreadyMerged = targetInstance?.plating?.appliedDecos
+            ?.filter((a) => a.decoStepId === step.id)
+            ?.reduce((sum, a) => sum + ((a as any).mergedAmount ?? 1), 0) ?? 0
+          const remainingNeeded = Math.max(requiredAmount - alreadyMerged, 0)
+          maxAmt = Math.min(sourceAvailable, remainingNeeded > 0 ? remainingNeeded : sourceAvailable)
+          defaultAmt = maxAmt
+        } else {
+          maxAmt = Math.max(requiredAmount, selectedDecoIngredient.remainingAmount ?? requiredAmount, 10)
+          defaultAmt = requiredAmount
+        }
+
         return (
           <DecoAmountPopup
             ingredientName={selectedDecoIngredient.name}
             minAmount={minAmt}
             maxAmount={maxAmt}
+            defaultAmount={defaultAmt}
             unit={selectedDecoIngredient.unit || step.required_unit || 'g'}
             onConfirm={handleAmountConfirm}
             onCancel={handleAmountCancel}
@@ -645,18 +694,18 @@ function PlateSlot({
 
   // 상태별 테두리 색상
   const getBorderColor = () => {
-    if (isSourcePlate) return 'border-orange-500 border-4' // 합치기 소스 (선택됨)
-    if (isTargetHighlight) return 'border-blue-500 border-4 animate-pulse' // 합치기 대상 (하이라이트)
+    if (isSourcePlate) return 'border-orange-500 border-2' // 합치기 소스 (선택됨)
+    if (isTargetHighlight) return 'border-blue-500 border-2 animate-pulse' // 합치기 대상 (하이라이트)
     if (isComplete) return 'border-green-400'
     if (plate.status === 'DECO_IN_PROGRESS') return 'border-purple-400'
-    return 'border-gray-300'
+    return 'border-gray-200'
   }
 
   // 사이드 접시인지 (합치기 가능)
   const isSidePlate = !plate.isMainDish && plate.bundleId
 
   return (
-    <div className={`bg-white rounded-xl shadow-lg border-2 ${getBorderColor()} p-3 flex flex-col relative`}>
+    <div className={`bg-white rounded-xl shadow-sm border ${getBorderColor()} p-3 flex flex-col relative`}>
       {/* 완성 뱃지 */}
       {isComplete && !mergeMode && (
         <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg z-10 animate-bounce">
@@ -686,7 +735,7 @@ function PlateSlot({
             ? 'bg-green-100 text-green-700'
             : plate.status === 'DECO_IN_PROGRESS'
               ? 'bg-purple-100 text-purple-700'
-              : 'bg-gray-100 text-gray-600'
+              : 'bg-indigo-100 text-gray-600'
         }`}>
           {isComplete ? '✅ 완성' : plate.status === 'DECO_IN_PROGRESS' ? '진행중' : '대기'}
         </div>
@@ -776,7 +825,7 @@ function PlateSlot({
             playSound('add')
             onEnterMergeMode()
           }}
-          className="mt-2 w-full py-2 bg-gradient-to-r from-orange-400 to-amber-500 text-white font-bold rounded-lg shadow-lg hover:from-orange-500 hover:to-amber-600 transition-all active:scale-95 text-sm"
+          className="mt-2 w-full py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow-sm transition-all active:scale-95 text-sm"
         >
           🔗 합치기
         </button>
@@ -790,7 +839,7 @@ function PlateSlot({
             playSound('confirm')
             onMergeClick()
           }}
-          className="mt-2 w-full py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-lg shadow-lg hover:from-blue-600 hover:to-indigo-700 transition-all active:scale-95 text-sm animate-pulse"
+          className="mt-2 w-full py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg shadow-sm transition-all active:scale-95 text-sm animate-pulse"
         >
           ⬇️ 여기에 합치기
         </button>
@@ -804,7 +853,7 @@ function PlateSlot({
             playSound('confirm')
             onServe()
           }}
-          className="mt-2 w-full py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-lg shadow-lg hover:from-green-600 hover:to-emerald-700 transition-all active:scale-95 text-sm"
+          className="mt-2 w-full py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-sm transition-all active:scale-95 text-sm"
         >
           🍽️ 서빙하기
         </button>

@@ -140,19 +140,19 @@ export default function PlateSelectPopup({
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-2xl overflow-hidden max-w-lg w-full max-h-[80vh] flex flex-col"
+        className="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-lg w-full max-h-[80vh] flex flex-col"
       >
         {/* 헤더 */}
-        <div className={`p-4 border-b flex justify-between items-center ${
+        <div className={`p-4 border-b flex justify-between items-center rounded-t-2xl ${
           isHot
-            ? 'bg-gradient-to-r from-orange-500 to-red-500'
-            : 'bg-gradient-to-r from-cyan-500 to-blue-500'
+            ? 'bg-orange-500'
+            : 'bg-cyan-500'
         }`}>
           <div>
             <h3 className="font-bold text-white text-lg">
               {phase === 'SELECT' ? '그릇 선택' : '그릇 준비 완료'}
             </h3>
-            <p className={`text-xs mt-1 ${isHot ? 'text-orange-100' : 'text-cyan-100'}`}>
+            <p className="text-xs mt-1 text-white/80">
               {phase === 'SELECT'
                 ? `${menuName} - 플레이팅할 그릇을 선택하세요`
                 : '데코존에서 플레이팅을 시작하세요'}
@@ -180,7 +180,7 @@ export default function PlateSelectPopup({
               className="flex-1 overflow-y-auto"
             >
               {/* 메뉴 정보 */}
-              <div className="p-4 bg-gray-50 border-b">
+              <div className="p-4 bg-indigo-50 border-b">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-cyan-500 flex items-center justify-center text-xl shadow-md">
                     🍽️
@@ -210,7 +210,7 @@ export default function PlateSelectPopup({
                       type="button"
                       tabIndex={0}
                       onClick={() => handleSelectPlate(plate)}
-                      className={`w-full p-4 rounded-xl border-2 transition-all focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:outline-none ${
+                      className={`w-full p-4 rounded-xl border transition-all focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:outline-none ${
                         selectedPlateType?.id === plate.id
                           ? 'border-cyan-500 bg-cyan-50 shadow-lg ring-2 ring-cyan-200'
                           : 'border-gray-200 bg-white hover:border-cyan-300 hover:bg-cyan-50'
@@ -257,7 +257,7 @@ export default function PlateSelectPopup({
                     playSound('cancel')
                     onCancel()
                   }}
-                  className="px-6 py-2 rounded bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold text-sm"
+                  className="px-6 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm"
                 >
                   취소
                 </button>
@@ -266,9 +266,9 @@ export default function PlateSelectPopup({
                   type="button"
                   onClick={handleConfirmPlate}
                   disabled={!selectedPlateType}
-                  className={`px-6 py-2 rounded font-bold text-sm shadow-lg focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:outline-none ${
+                  className={`px-6 py-2 rounded-lg font-bold text-sm focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:outline-none ${
                     selectedPlateType
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white'
+                      ? 'bg-cyan-500 hover:bg-cyan-600 text-white'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}
                 >
@@ -286,7 +286,7 @@ export default function PlateSelectPopup({
             >
               {/* 완료 표시 */}
               <div className="text-center mb-6">
-                <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-4xl shadow-lg mb-4">
+                <div className="w-20 h-20 mx-auto rounded-full bg-cyan-500 flex items-center justify-center text-4xl shadow-lg mb-4">
                   {selectedPlateType ? getPlateIcon(selectedPlateType.plate_type) : '🍽️'}
                 </div>
                 <div className="text-gray-800 font-bold text-lg">접시가 준비되었습니다!</div>
@@ -296,7 +296,7 @@ export default function PlateSelectPopup({
               </div>
 
               {/* 선택한 접시 정보 */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <div className="bg-indigo-50 rounded-lg p-4 mb-6">
                 <div className="text-xs font-medium text-gray-500 mb-2">선택한 접시</div>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-lg bg-cyan-100 flex items-center justify-center text-2xl">
@@ -329,7 +329,7 @@ export default function PlateSelectPopup({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="flex-1 py-3 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-sm"
+                  className="flex-1 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm"
                 >
                   닫기
                 </button>
@@ -337,7 +337,7 @@ export default function PlateSelectPopup({
                   ref={decoZoneBtnRef}
                   type="button"
                   onClick={handleMoveToDecoZone}
-                  className="flex-1 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2 focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:outline-none"
+                  className="flex-1 py-3 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-sm flex items-center justify-center gap-2 focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:outline-none"
                 >
                   <span>🎨</span>
                   <span>데코존으로 이동</span>
@@ -355,7 +355,7 @@ export default function PlateSelectPopup({
             >
               {/* 완료 표시 */}
               <div className="text-center mb-6">
-                <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-4xl shadow-lg mb-4">
+                <div className="w-20 h-20 mx-auto rounded-full bg-teal-500 flex items-center justify-center text-4xl shadow-lg mb-4">
                   📦
                 </div>
                 <div className="text-gray-800 font-bold text-lg">꺼내놓은 식자재로 이동!</div>
@@ -382,7 +382,7 @@ export default function PlateSelectPopup({
               </div>
 
               {/* 안내 메시지 */}
-              <div className="bg-gray-50 rounded-lg p-3 mb-6 text-center">
+              <div className="bg-indigo-50 rounded-lg p-3 mb-6 text-center">
                 <span className="text-gray-600 text-sm">
                   데코존에서 메인 플레이트 위에 배치하세요
                 </span>
@@ -393,7 +393,7 @@ export default function PlateSelectPopup({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="flex-1 py-3 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-sm"
+                  className="flex-1 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm"
                 >
                   닫기
                 </button>
@@ -401,7 +401,7 @@ export default function PlateSelectPopup({
                   ref={decoZoneBtnRef}
                   type="button"
                   onClick={handleMoveToDecoZone}
-                  className="flex-1 py-3 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2 focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 focus:outline-none"
+                  className="flex-1 py-3 rounded-lg bg-teal-500 hover:bg-teal-600 text-white font-bold text-sm flex items-center justify-center gap-2 focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 focus:outline-none"
                 >
                   <span>🎨</span>
                   <span>데코존으로 이동</span>

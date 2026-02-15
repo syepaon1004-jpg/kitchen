@@ -12,7 +12,7 @@ export default function GameHeader() {
   return (
     <>
       {/* Desktop Header - 기존 코드 유지 */}
-      <header className="hidden lg:flex h-16 items-center justify-between px-6 bg-white border-b-2 border-[#E0E0E0] shrink-0">
+      <header className="hidden lg:flex h-16 items-center justify-between px-6 bg-white border-b border-gray-200 shadow-sm shrink-0">
         <span className="font-mono text-lg font-semibold text-[#333]">
           타이머: {formatTime(elapsedSeconds)}
         </span>

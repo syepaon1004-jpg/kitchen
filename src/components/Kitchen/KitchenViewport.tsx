@@ -86,8 +86,8 @@ export default function KitchenViewport({ gridData, equipment }: KitchenViewport
           className="
             absolute left-0 top-1/2 -translate-y-1/2
             w-10 h-20
-            bg-black/50 hover:bg-black/70
-            text-white text-2xl
+            bg-white/90 hover:bg-white
+            text-gray-700 text-2xl shadow-md border border-gray-200
             rounded-r-lg
             flex items-center justify-center
             transition-all
@@ -106,8 +106,8 @@ export default function KitchenViewport({ gridData, equipment }: KitchenViewport
           className="
             absolute right-0 top-1/2 -translate-y-1/2
             w-10 h-20
-            bg-black/50 hover:bg-black/70
-            text-white text-2xl
+            bg-white/90 hover:bg-white
+            text-gray-700 text-2xl shadow-md border border-gray-200
             rounded-l-lg
             flex items-center justify-center
             transition-all
@@ -129,8 +129,8 @@ export default function KitchenViewport({ gridData, equipment }: KitchenViewport
               className={`
                 w-2 h-2 rounded-full transition-all
                 ${idx === currentViewport
-                  ? 'bg-white scale-125'
-                  : 'bg-white/40 hover:bg-white/60'}
+                  ? 'bg-gray-700 scale-125'
+                  : 'bg-gray-300 hover:bg-gray-400'}
               `}
               aria-label={`뷰포트 ${idx + 1}`}
             />

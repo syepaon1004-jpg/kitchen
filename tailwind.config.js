@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: { DEFAULT: '#FF6B35', dark: '#E85A2A' },
+        primary: { DEFAULT: '#4361EE', dark: '#3651D4' },
         secondary: { DEFAULT: '#4ECDC4', dark: '#3AB8AF' },
         surface: '#FFFFFF',
         'wok-clean': '#E0E0E0',

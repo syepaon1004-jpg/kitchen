@@ -159,7 +159,7 @@ export default function SeasoningEquipment({
           ) : (
             <div
               key={`empty-${i}`}
-              className="rounded bg-gray-100/50 border border-gray-200/50"
+              className="rounded bg-indigo-100/50 border border-gray-200/50"
             />
           )
         )}

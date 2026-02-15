@@ -292,7 +292,7 @@ interface GameStore {
   executeAction: (instanceId: string, actionType: string) => { ok: boolean; message?: string }
   completeBundle: (instanceId: string) => BundleInstance | null
   routeAfterPlate: (instanceId: string, plateType: PlateType) => void
-  mergeBundle: (targetInstanceId: string, sourceInstanceId: string) => { success: boolean; message: string }
+  mergeBundle: (targetInstanceId: string, sourceInstanceId: string, amount?: number) => { success: boolean; message: string }
   serveBundle: (instanceId: string) => boolean
   tickBundleTimers: () => void
   // v3.2 리팩토링: 튀김기 전용 통합 함수 (올리기/내리기 분리)
@@ -1706,6 +1706,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       plating: null,
       ingredients: [],
       errors: 0,
+      availableAmount: 0, // routeAfterPlate에서 실제 값으로 갱신
     }
 
     // 6. bundleInstances에 추가
@@ -2102,10 +2103,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       mergedBundleIds: [],
     }
 
-    // 3. updateBundleInstance
-    updateBundleInstance(instanceId, { plating: platingState })
+    // 3. availableAmount 계산 (합치기 가능 수량 = 조리된 재료 수량)
+    const availableAmount = instance.ingredients.length > 0
+      ? instance.ingredients.reduce((sum, ing) => sum + ing.amount, 0)
+      : 1
 
-    // 4. is_main_dish 판별 → 위치 결정
+    // 4. updateBundleInstance
+    updateBundleInstance(instanceId, { plating: platingState, availableAmount })
+
+    // 5. is_main_dish 판별 → 위치 결정
     const plateId = `plate-${Date.now()}-${Math.random().toString(36).slice(2)}`
     if (instance.isMainDish) {
       moveBundle(instanceId, { type: 'DECO_MAIN', plateId })
@@ -2116,8 +2122,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  mergeBundle: (targetInstanceId, sourceInstanceId) => {
-    const { bundleInstances, decoSteps, level, updateBundleInstance, moveBundle } = get()
+  mergeBundle: (targetInstanceId, sourceInstanceId, requestedAmount?) => {
+    const { bundleInstances, decoSteps, level, updateBundleInstance, moveBundle, addDecoMistake } = get()
 
     // 1. target, source 찾기
     const target = bundleInstances.find((b) => b.id === targetInstanceId)
@@ -2146,26 +2152,72 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return { success: false, message: '이 묶음을 합칠 수 있는 데코 스텝이 없습니다' }
     }
 
-    // 5. deco_order 순서 검증 (BEGINNER: 순서 틀리면 거절)
-    if (level === 'BEGINNER' && target.plating) {
-      const appliedOrders = target.plating.appliedDecos.map((d) => {
-        const step = decoSteps.find((s) => s.id === d.decoStepId)
-        return step?.deco_order ?? 0
+    // 5. deco_order 순서 검증 — 이전 ALL 스텝 전부 완료 체크 (타입 무관, 수량 누적 기반)
+    if (target.plating) {
+      const allRecipeSteps = decoSteps
+        .filter((s) => s.recipe_id === target.recipeId)
+        .sort((a, b) => a.deco_order - b.deco_order)
+
+      const currentStepIndex = allRecipeSteps.findIndex((s) => s.id === decoStep.id)
+      const previousSteps = allRecipeSteps.slice(0, currentStepIndex)
+      const incompleteSteps = previousSteps.filter((prevStep) => {
+        if (prevStep.source_type === 'BUNDLE') {
+          // BUNDLE 타입: 수량 누적 기반 판별
+          const prevRequired = prevStep.required_amount ?? 1
+          const prevMerged = target.plating!.appliedDecos
+            .filter((a) => a.decoStepId === prevStep.id)
+            .reduce((sum, a) => sum + (a.mergedAmount ?? 1), 0)
+          return prevMerged < prevRequired
+        }
+        // 기타 타입: 기존 존재 여부 체크
+        return !target.plating!.appliedDecos.some((applied) => applied.decoStepId === prevStep.id)
       })
-      const maxAppliedOrder = Math.max(0, ...appliedOrders)
-      if (decoStep.deco_order <= maxAppliedOrder) {
-        return { success: false, message: '데코 순서가 올바르지 않습니다' }
+
+      if (incompleteSteps.length > 0) {
+        const nextRequiredStep = incompleteSteps[0]
+        const nextStepName = nextRequiredStep.display_name ?? '이전 묶음'
+
+        if (level === 'BEGINNER') {
+          return { success: false, message: `먼저 "${nextStepName}"을(를) 합쳐야 합니다` }
+        } else {
+          // 중급 이상: 순서 틀려도 진행하되 감점
+          console.warn(`⚠️ mergeBundle 순서 틀림: ${nextStepName} 먼저 필요 (감점 적용)`)
+          addDecoMistake()
+        }
       }
     }
 
-    // 6. target.plating에 레이어 추가
+    // 5.5. 수량 검증 — required_amount 대비 누적 수량 체크
+    const required = decoStep.required_amount ?? 1
+    const alreadyMerged = target.plating
+      ? target.plating.appliedDecos
+          .filter((a) => a.decoStepId === decoStep.id)
+          .reduce((sum, a) => sum + (a.mergedAmount ?? 1), 0)
+      : 0
+    const remainingNeeded = required - alreadyMerged
+
+    if (remainingNeeded <= 0) {
+      return { success: false, message: '이미 충분한 수량이 합쳐졌습니다' }
+    }
+
+    const available = source.availableAmount ?? 1
+    const toMerge = requestedAmount
+      ? Math.min(requestedAmount, available, remainingNeeded)
+      : Math.min(available, remainingNeeded)
+
+    if (toMerge <= 0) {
+      return { success: false, message: '합칠 수량이 없습니다' }
+    }
+
+    // 6. target.plating에 레이어 추가 (실제 합친 수량 기록)
     if (target.plating) {
       const newAppliedDeco = {
         decoStepId: decoStep.id,
         sourceType: 'BUNDLE' as const,
         gridPosition: decoStep.grid_position,
         imageColor: decoStep.layer_image_color,
-        amount: decoStep.required_amount ?? undefined,
+        amount: toMerge,
+        mergedAmount: toMerge,
       }
 
       const updatedGridCells = target.plating.gridCells.map((cell) => {
@@ -2178,7 +2230,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 decoStepId: decoStep.id,
                 ingredientName: source.bundleName,
                 imageColor: decoStep.layer_image_color,
-                amount: decoStep.required_amount ?? 1,
+                amount: toMerge,
                 appliedAt: Date.now(),
               },
             ],
@@ -2197,10 +2249,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
       })
     }
 
-    // 7. moveBundle(source → MERGED)
-    moveBundle(sourceInstanceId, { type: 'MERGED', targetInstanceId })
+    // 7. source 잔여 수량 처리
+    const newAvailable = available - toMerge
 
-    console.log(`🔗 mergeBundle: ${source.bundleName} → ${target.bundleName}`)
+    if (newAvailable > 0) {
+      // 잔여 수량 있음 → DECO_SETTING에 유지
+      updateBundleInstance(sourceInstanceId, { availableAmount: newAvailable })
+      console.log(`🔗 mergeBundle: ${source.bundleName} ${toMerge}ea 합침 → 잔여 ${newAvailable}ea`)
+    } else {
+      // 전부 소모 → MERGED로 이동
+      moveBundle(sourceInstanceId, { type: 'MERGED', targetInstanceId })
+      console.log(`🔗 mergeBundle: ${source.bundleName} 전체 합침 (${toMerge}ea)`)
+    }
     return { success: true, message: '묶음 병합 완료' }
   },
 
@@ -2220,10 +2280,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return false
     }
 
-    // 2. 데코 완성 체크
+    // 2. 데코 완성 체크 (수량 누적 기반)
     const requiredDecos = decoSteps.filter((d) => d.recipe_id === instance.recipeId)
-    const appliedDecoIds = instance.plating?.appliedDecos.map((d) => d.decoStepId) ?? []
-    const isComplete = requiredDecos.every((d) => appliedDecoIds.includes(d.id))
+    const appliedDecos = instance.plating?.appliedDecos ?? []
+    const isComplete = requiredDecos.every((d) => {
+      if (d.source_type === 'BUNDLE') {
+        const required = d.required_amount ?? 1
+        const merged = appliedDecos
+          .filter((a) => a.decoStepId === d.id)
+          .reduce((sum, a) => sum + (a.mergedAmount ?? 1), 0)
+        return merged >= required
+      }
+      return appliedDecos.some((a) => a.decoStepId === d.id)
+    })
 
     if (!isComplete) {
       console.warn(`⚠️ serveBundle: deco not complete for ${instance.menuName}`)
@@ -2751,6 +2820,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }))
     }
 
+    // v3.4: bundleInstance.ingredients 동기화 (DecoZone 표시 + availableAmount 계산용)
+    const { bundleInstances: currentBundles, updateBundleInstance: syncBundleIngredients } = get()
+    const bundleForWok = currentBundles.find(
+      (b) => b.location.type === 'WOK' && b.location.burnerNumber === burnerNumber
+    )
+    if (bundleForWok) {
+      const ingredientUnit = matchedIngredient?.required_unit ?? 'g'
+      const existingIdx = bundleForWok.ingredients.findIndex((ing) => ing.name === displayName)
+      let updatedIngredients: typeof bundleForWok.ingredients
+      if (existingIdx >= 0) {
+        updatedIngredients = bundleForWok.ingredients.map((ing, idx) =>
+          idx === existingIdx ? { ...ing, amount: ing.amount + amount } : ing
+        )
+      } else {
+        updatedIngredients = [...bundleForWok.ingredients, { name: displayName, amount, unit: ingredientUnit }]
+      }
+      syncBundleIngredients(bundleForWok.id, { ingredients: updatedIngredients })
+    }
+
     return true
   },
 
@@ -3140,16 +3228,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return { success: false, message: '묶음은 메인 플레이트에만 합칠 수 있습니다', isPositionError: false }
       }
 
-      // BUNDLE 스텝 순서 검증 (이전 BUNDLE 스텝들 완료 확인)
-      const bundleSteps = decoSteps
-        .filter((s) => s.recipe_id === plate.recipeId && s.source_type === 'BUNDLE')
+      // BUNDLE 스텝 순서 검증 (ALL 타입 통합, 수량 완료 확인)
+      const allRecipeSteps = decoSteps
+        .filter((s) => s.recipe_id === plate.recipeId)
         .sort((a, b) => a.deco_order - b.deco_order)
 
-      const currentStepIndex = bundleSteps.findIndex((s) => s.id === step.id)
-      const previousSteps = bundleSteps.slice(0, currentStepIndex)
-      const incompleteSteps = previousSteps.filter(
-        (prevStep) => !plate.appliedDecos.some((applied) => applied.decoStepId === prevStep.id)
-      )
+      const currentStepIndex = allRecipeSteps.findIndex((s) => s.id === step.id)
+      const previousSteps = allRecipeSteps.slice(0, currentStepIndex)
+      const incompleteSteps = previousSteps.filter((prevStep) => {
+        if (prevStep.source_type === 'BUNDLE') {
+          const prevRequired = prevStep.required_amount ?? 1
+          const prevMerged = plate.appliedDecos
+            .filter((a) => a.decoStepId === prevStep.id)
+            .reduce((sum, a) => sum + (a.mergedAmount ?? 1), 0)
+          return prevMerged < prevRequired
+        }
+        return !plate.appliedDecos.some((applied) => applied.decoStepId === prevStep.id)
+      })
 
       if (incompleteSteps.length > 0) {
         const nextRequiredStep = incompleteSteps[0]
@@ -3171,21 +3266,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
       console.log(`🥡 BUNDLE 합치기: ${step.display_name} → ${plate.menuName}`)
     }
 
-    // v3: deco_order 순서 검증 (non-BUNDLE 아이템)
+    // v3: deco_order 순서 검증 (non-BUNDLE 아이템) — ALL 타입 통합
     if (step.source_type !== 'BUNDLE') {
-      // 해당 레시피의 모든 non-BUNDLE 데코 스텝을 deco_order 순으로 정렬
+      // 해당 레시피의 모든 데코 스텝을 deco_order 순으로 정렬 (타입 무관)
       const orderedSteps = decoSteps
-        .filter((s) => s.recipe_id === plate.recipeId && s.source_type !== 'BUNDLE')
+        .filter((s) => s.recipe_id === plate.recipeId)
         .sort((a, b) => a.deco_order - b.deco_order)
 
       const currentStepIndex = orderedSteps.findIndex((s) => s.id === step.id)
 
       if (currentStepIndex > 0) {
-        // 이전 스텝들이 모두 완료되었는지 확인
+        // 이전 스텝들이 모두 완료되었는지 확인 (BUNDLE은 수량 기반)
         const previousSteps = orderedSteps.slice(0, currentStepIndex)
-        const incompleteSteps = previousSteps.filter(
-          (prevStep) => !plate.appliedDecos.some((applied) => applied.decoStepId === prevStep.id)
-        )
+        const incompleteSteps = previousSteps.filter((prevStep) => {
+          if (prevStep.source_type === 'BUNDLE') {
+            const prevRequired = prevStep.required_amount ?? 1
+            const prevMerged = plate.appliedDecos
+              .filter((a) => a.decoStepId === prevStep.id)
+              .reduce((sum, a) => sum + (a.mergedAmount ?? 1), 0)
+            return prevMerged < prevRequired
+          }
+          return !plate.appliedDecos.some((applied) => applied.decoStepId === prevStep.id)
+        })
 
         if (incompleteSteps.length > 0) {
           const nextRequiredStep = incompleteSteps[0]
@@ -3209,11 +3311,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     // v3: 중복 배치 방지: 같은 decoStepId + gridPosition 조합이 이미 존재하는지 확인
-    const alreadyPlaced = plate.appliedDecos.some(
-      (applied) => applied.decoStepId === step.id && applied.gridPosition === gridPosition
-    )
-    if (alreadyPlaced) {
-      return { success: false, message: '이미 배치된 재료입니다', isPositionError: false }
+    // v3.5: BUNDLE 타입은 수량 누적 허용 (1ea + 1ea = 2ea)
+    if (step.source_type !== 'BUNDLE') {
+      const alreadyPlaced = plate.appliedDecos.some(
+        (applied) => applied.decoStepId === step.id && applied.gridPosition === gridPosition
+      )
+      if (alreadyPlaced) {
+        return { success: false, message: '이미 배치된 재료입니다', isPositionError: false }
+      }
     }
 
     // v3: grid_position 단일 값으로 검증 (배열 grid_positions 제거됨)
@@ -3234,7 +3339,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return { success: false, message: `${step.display_name}의 필요 수량이 설정되지 않았습니다. DB를 확인하세요.`, isPositionError: false }
     }
     const requiredAmount = step.required_amount ?? 1
-    if (amount !== requiredAmount) {
+    // v3.5: BUNDLE 타입은 누적 기반 수량 검증 (부분 합치기 허용)
+    if (step.source_type === 'BUNDLE') {
+      const alreadyMerged = plate.appliedDecos
+        .filter((a) => a.decoStepId === step.id)
+        .reduce((sum, a) => sum + (a.mergedAmount ?? 1), 0)
+      const remainingNeeded = requiredAmount - alreadyMerged
+      if (remainingNeeded <= 0) {
+        return { success: false, message: '이미 충분한 수량이 합쳐졌습니다', isPositionError: false }
+      }
+      if (amount > remainingNeeded) {
+        return { success: false, message: `필요 수량 초과 (남은 필요량: ${remainingNeeded})`, isPositionError: false }
+      }
+    } else if (amount !== requiredAmount) {
       return {
         success: false,
         message: `수량이 맞지 않습니다 (필요: ${requiredAmount})`,
@@ -3264,6 +3381,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       gridPosition,
       imageColor: step.layer_image_color ?? '#9CA3AF',
       amount,
+      ...(step.source_type === 'BUNDLE' ? { mergedAmount: amount } : {}),
     }
 
     // v3.1: BundleInstance.plating 업데이트
@@ -3309,8 +3427,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
           }
           // v3.3: 소스 번들 처리 (BUNDLE 타입 또는 SETTING_ITEM)
           if (settingBundle && b.id === settingBundle.id) {
-            // 수량 차감 로직
-            const currentAmount = b.ingredients?.[0]?.amount ?? 1
+            // 수량 차감 로직 (availableAmount 우선 사용)
+            const currentAmount = b.availableAmount ?? (b.ingredients?.[0]?.amount ?? 1)
             const remainingAmount = currentAmount - amount
 
             if (remainingAmount <= 0) {
@@ -3318,16 +3436,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
               console.log(`🎨 ${b.bundleName}: 수량 소진 → MERGED`)
               return {
                 ...b,
+                availableAmount: 0,
                 location: { type: 'MERGED' as const, targetInstanceId: plateId },
               }
             } else {
-              // 잔량 있음 → 수량만 차감
+              // 잔량 있음 → availableAmount 차감
               console.log(`🎨 ${b.bundleName}: ${currentAmount} - ${amount} = ${remainingAmount} 남음`)
               return {
                 ...b,
-                ingredients: b.ingredients?.map((ing, idx) =>
-                  idx === 0 ? { ...ing, amount: remainingAmount } : ing
-                ) ?? [],
+                availableAmount: remainingAmount,
               }
             }
           }
@@ -3379,10 +3496,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       .filter((s) => s.recipe_id === recipeId && s.source_type === 'BUNDLE')
       .sort((a, b) => a.deco_order - b.deco_order)
 
-    // 아직 적용되지 않은 첫 번째 BUNDLE 스텝 찾기
-    const nextStep = bundleSteps.find(
-      (step) => !appliedDecos.some((applied) => applied.decoStepId === step.id)
-    )
+    // 아직 수량이 충족되지 않은 첫 번째 BUNDLE 스텝 찾기
+    const nextStep = bundleSteps.find((step) => {
+      const required = step.required_amount ?? 1
+      const merged = appliedDecos
+        .filter((a) => a.decoStepId === step.id)
+        .reduce((sum, a) => sum + (a.mergedAmount ?? 1), 0)
+      return merged < required
+    })
 
     return nextStep ?? null
   },
@@ -3405,10 +3526,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // 데코 스텝이 있으면 반드시 체크 (deco_required 무관)
     if (recipeDecoSteps.length > 0) {
-      // v3: 모든 데코 스텝이 적용되었는지 확인 (decoStepId 사용)
-      const allStepsApplied = recipeDecoSteps.every((step) =>
-        appliedDecos.some((applied) => applied.decoStepId === step.id)
-      )
+      // v3.4: 모든 데코 스텝이 수량 기준으로 완성되었는지 확인
+      const allStepsApplied = recipeDecoSteps.every((step) => {
+        if (step.source_type === 'BUNDLE') {
+          // BUNDLE 타입: 수량 누적 >= required_amount
+          const required = step.required_amount ?? 1
+          const merged = appliedDecos
+            .filter((a) => a.decoStepId === step.id)
+            .reduce((sum, a) => sum + (a.mergedAmount ?? 1), 0)
+          return merged >= required
+        }
+        // 기타 타입 (DECO_ITEM, SETTING_ITEM): 기존 존재 여부 체크
+        return appliedDecos.some((applied) => applied.decoStepId === step.id)
+      })
       return allStepsApplied
     }
 

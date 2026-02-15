@@ -94,16 +94,7 @@ export default function FridgeZoomView({ onSelectIngredient, onSelectMultiple }:
                 {!isSelected ? (
                   <button
                     onClick={() => setSelectedBox(pos.code)}
-                    className="w-full h-full rounded-lg bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 shadow-2xl border-4 border-gray-300 text-gray-700 font-bold text-xl flex items-center justify-center hover:scale-105 transition-transform"
-                    style={{
-                      backgroundImage: `
-                        linear-gradient(135deg, 
-                          rgba(255,255,255,0.9) 0%, 
-                          rgba(220,220,220,0.5) 50%, 
-                          rgba(255,255,255,0.9) 100%)
-                      `,
-                      boxShadow: 'inset 0 2px 6px rgba(255,255,255,1), 0 8px 20px rgba(0,0,0,0.3)'
-                    }}
+                    className="w-full h-full rounded-lg bg-white shadow-sm hover:shadow-md border border-gray-200 text-gray-700 font-bold text-xl flex items-center justify-center hover:scale-105 transition-transform"
                   >
                     <div className="flex flex-col items-center gap-2">
                       <div className="text-2xl lg:text-3xl">❄️</div>
@@ -111,26 +102,26 @@ export default function FridgeZoomView({ onSelectIngredient, onSelectMultiple }:
                     </div>
                   </button>
                 ) : (
-                  <div className="w-full h-full rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 border-4 border-blue-300 flex flex-col items-center justify-center gap-2 lg:gap-3 p-3 lg:p-4 shadow-2xl">
+                  <div className="w-full h-full rounded-lg bg-white border border-blue-300 flex flex-col items-center justify-center gap-2 lg:gap-3 p-3 lg:p-4 shadow-md">
                     <div className="text-xs lg:text-sm font-bold text-gray-800 mb-1">{pos.label}</div>
                     
                     <button
                       onClick={() => showFloorData(pos.code, 1)}
-                      className="w-full py-2 lg:py-3 rounded-lg bg-white border-2 border-blue-400 text-blue-700 font-bold hover:bg-blue-50 transition shadow-md text-xs lg:text-sm"
+                      className="w-full py-2 lg:py-3 rounded-lg bg-white border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 transition shadow-md text-xs lg:text-sm"
                     >
                       1️⃣ 1층
                     </button>
-                    
+
                     <button
                       onClick={() => showFloorData(pos.code, 2)}
-                      className="w-full py-2 lg:py-3 rounded-lg bg-white border-2 border-blue-400 text-blue-700 font-bold hover:bg-blue-50 transition shadow-md text-xs lg:text-sm"
+                      className="w-full py-2 lg:py-3 rounded-lg bg-white border border-blue-300 text-blue-700 font-bold hover:bg-blue-50 transition shadow-md text-xs lg:text-sm"
                     >
                       2️⃣ 2층
                     </button>
 
                     <button
                       onClick={() => setSelectedBox(null)}
-                      className="mt-1 lg:mt-2 px-3 lg:px-4 py-1 rounded bg-gray-300 text-gray-700 text-[10px] lg:text-xs hover:bg-gray-400 transition shadow-md"
+                      className="mt-1 lg:mt-2 px-3 lg:px-4 py-1 rounded bg-gray-100 text-gray-700 text-[10px] lg:text-xs hover:bg-gray-200 transition shadow-md"
                     >
                       닫기
                     </button>
@@ -155,7 +146,7 @@ export default function FridgeZoomView({ onSelectIngredient, onSelectMultiple }:
             setSelectedBox(null)
             useGameStore.setState({ fridgeViewState: 'ZOOMED' })
           }}
-          className="fixed top-4 left-4 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition shadow-lg z-[60]"
+          className="fixed top-4 left-4 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition shadow-lg z-[60]"
         >
           ← 뒤로
         </button>

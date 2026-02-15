@@ -195,7 +195,7 @@ export default function GameResult() {
               <XAxis dataKey="game" />
               <YAxis />
               <Tooltip />
-              <Line type="monotone" dataKey="totalScore" stroke="#FF6B35" name="총점" />
+              <Line type="monotone" dataKey="totalScore" stroke="#4361EE" name="총점" />
               <Line type="monotone" dataKey="recipeAccuracy" stroke="#4CAF50" name="정확도" />
               <Line type="monotone" dataKey="speed" stroke="#FFC107" name="속도" />
               <Line type="monotone" dataKey="burnerUsage" stroke="#F44336" name="화구 사용" />

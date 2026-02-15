@@ -114,7 +114,7 @@ export default function AmountInputPopup({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 lg:p-4">
-      <div className="bg-white rounded-xl max-w-3xl w-full p-3 lg:p-6 shadow-xl flex flex-col max-h-[95vh]">
+      <div className="bg-white rounded-2xl max-w-3xl w-full p-3 lg:p-6 shadow-xl flex flex-col max-h-[95vh]">
         <h3 className="font-bold text-[#333] mb-1 text-sm lg:text-xl">{title} 투입량</h3>
         <p className="text-[10px] lg:text-sm text-[#757575] mb-2 lg:mb-4">
           각 화구별로 투입할 양을 지정하세요 (목표: {requiredAmount}{requiredUnit})
@@ -128,7 +128,7 @@ export default function AmountInputPopup({
             return (
               <div
                 key={burnerNumber}
-                className={`border-2 rounded-lg p-2 lg:p-4 ${
+                className={`border rounded-lg p-2 lg:p-4 ${
                   hasMenu ? 'border-primary bg-primary/5' : 'border-[#E0E0E0] bg-gray-50'
                 }`}
               >
@@ -150,7 +150,7 @@ export default function AmountInputPopup({
                     onKeyDown={handleKeyDown}
                     disabled={!hasMenu}
                     data-burner-number={burnerNumber}
-                    className="w-full text-center text-lg lg:text-2xl font-bold text-primary py-0 lg:py-2 border-2 border-primary/30 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="w-full text-center text-lg lg:text-2xl font-bold text-primary py-0 lg:py-2 border border-primary/30 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none disabled:opacity-30 disabled:cursor-not-allowed"
                     placeholder={`0${requiredUnit}`}
                   />
                 </div>
@@ -190,7 +190,7 @@ export default function AmountInputPopup({
         </div>
 
         {/* 총합 표시 */}
-        <div className="text-center mb-2 lg:mb-4 p-1.5 lg:p-3 bg-gray-100 rounded-lg flex-shrink-0">
+        <div className="text-center mb-2 lg:mb-4 p-1.5 lg:p-3 bg-indigo-100 rounded-lg flex-shrink-0">
           <span className="text-[10px] lg:text-sm text-[#757575]">총 투입량: </span>
           <span className="font-bold text-[#333] text-sm lg:text-lg">
             {totalAmount}{requiredUnit}
@@ -202,7 +202,7 @@ export default function AmountInputPopup({
           <button
             type="button"
             onClick={resetAll}
-            className="flex-1 py-2 lg:py-3 rounded-lg bg-[#E0E0E0] hover:bg-[#d0d0d0] font-medium text-xs lg:text-base"
+            className="flex-1 py-2 lg:py-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium text-xs lg:text-base"
             tabIndex={-1}
           >
             초기화
@@ -224,7 +224,7 @@ export default function AmountInputPopup({
               playSound('cancel')
               onCancel()
             }}
-            className="flex-1 py-2 lg:py-3 rounded-lg border-2 border-[#E0E0E0] hover:bg-gray-50 font-medium text-xs lg:text-base"
+            className="flex-1 py-2 lg:py-3 rounded-lg border border-gray-200 hover:bg-gray-50 font-medium text-xs lg:text-base"
             tabIndex={-1}
           >
             취소

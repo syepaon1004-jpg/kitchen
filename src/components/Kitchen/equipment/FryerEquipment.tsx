@@ -192,20 +192,20 @@ export default function FryerEquipment({
       {/* 메인 장비 버튼 - 튀김기 실제 모양 */}
       <div
         onClick={() => setShowPopup(true)}
-        className={`w-full h-full rounded-lg border-2 overflow-hidden
+        className={`w-full h-full rounded-lg overflow-hidden
                     flex flex-col cursor-pointer transition-all duration-200
                     ${burnedStatus
-                      ? 'bg-red-800 border-red-500 shadow-lg shadow-red-500/50 animate-pulse'
+                      ? 'bg-white border border-red-500 shadow-md animate-pulse'
                       : doneBundle
-                        ? (blinkDone ? 'bg-green-600 border-green-400' : 'bg-green-700 border-green-500')
+                        ? (blinkDone ? 'bg-green-50 border border-green-400 shadow-md' : 'bg-white border border-green-400 shadow-md')
                         : fryingBundle
-                          ? 'bg-amber-800 border-amber-500 shadow-lg shadow-amber-500/30'
-                          : 'bg-amber-900/80 border-amber-700 hover:border-amber-400'}`}
+                          ? 'bg-white border border-amber-300 shadow-md'
+                          : 'bg-white border border-gray-200 shadow-sm hover:border-gray-300'}`}
       >
         {/* 상단: 튀김기 이름 + 아이콘 */}
-        <div className="flex items-center justify-center gap-1 py-1 bg-amber-950/50">
+        <div className="flex items-center justify-center gap-1 py-1 bg-indigo-50 border-b border-gray-100">
           <span className="text-lg">🍟</span>
-          <span className="text-xs text-amber-200 font-medium">{displayName}</span>
+          <span className="text-xs text-gray-600 font-medium">{displayName}</span>
         </div>
 
         {/* 중앙: 타이머 또는 상태 */}
@@ -213,14 +213,14 @@ export default function FryerEquipment({
           {burnedStatus ? (
             <div className="text-center animate-bounce">
               <div className="text-2xl">🔥💀</div>
-              <div className="text-xs text-red-100 font-bold">타버림!</div>
+              <div className="text-xs text-red-600 font-bold">타버림!</div>
             </div>
           ) : fryingBundle ? (
             <div className="text-center">
-              <div className="text-xl font-mono font-bold text-amber-100">
+              <div className="text-xl font-mono font-bold text-gray-800">
                 {formatRemainingTime(fryingBundle)}
               </div>
-              <div className="w-12 h-1.5 bg-amber-900 rounded-full overflow-hidden mt-1 mx-auto">
+              <div className="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden mt-1 mx-auto">
                 <div
                   className="h-full bg-amber-400 transition-all duration-1000"
                   style={{ width: `${getProgress(fryingBundle)}%` }}
@@ -230,27 +230,27 @@ export default function FryerEquipment({
           ) : doneBundle ? (
             <div className="text-center animate-pulse">
               <div className="text-2xl">✅</div>
-              <div className="text-xs text-green-100 font-bold">완료!</div>
+              <div className="text-xs text-green-600 font-bold">완료!</div>
             </div>
           ) : activeBaskets > 0 ? (
             <div className="text-center">
               <div className="text-2xl">🧺</div>
-              <div className="text-xs text-amber-200">{activeBaskets}개 활성</div>
+              <div className="text-xs text-gray-600">{activeBaskets}개 활성</div>
             </div>
           ) : (
             <div className="text-center">
               <div className="text-2xl opacity-50">🍳</div>
-              <div className="text-xs text-amber-300/60">대기중</div>
+              <div className="text-xs text-gray-400">대기중</div>
             </div>
           )}
         </div>
 
         {/* 하단: 바스켓 인디케이터 */}
-        <div className="flex justify-center gap-1 py-1.5 bg-amber-950/30">
+        <div className="flex justify-center gap-1 py-1.5 bg-indigo-50 border-t border-gray-100">
           {baskets.map((b) => (
             <div
               key={b.number}
-              className={`w-3 h-3 rounded-full border border-amber-400/50 ${getBasketStatusColor(b.status, b.bundle)}`}
+              className={`w-3 h-3 rounded-full border border-gray-300 ${getBasketStatusColor(b.status, b.bundle)}`}
               title={`바스켓 ${b.number}: ${getBasketStatusText(b.status, b.bundle)}`}
             />
           ))}
@@ -278,18 +278,18 @@ export default function FryerEquipment({
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   className="w-[calc(100vw-2rem)] max-w-lg max-h-[85vh] overflow-hidden
-                             bg-gradient-to-br from-amber-100 to-amber-200
-                             rounded-xl shadow-2xl border-4 border-amber-500 pointer-events-auto flex flex-col"
+                             bg-white
+                             rounded-2xl shadow-2xl pointer-events-auto flex flex-col"
                 >
                   {/* 헤더 */}
-                  <div className="flex items-center justify-between p-4 border-b border-amber-300 bg-gradient-to-r from-amber-600 to-orange-600">
+                  <div className="flex items-center justify-between p-4 border-b border-amber-200 bg-amber-500 rounded-t-2xl">
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                       <span className="text-2xl">🍟</span>
                       튀김기
                     </h3>
                     <button
                       onClick={() => setShowPopup(false)}
-                      className="w-8 h-8 rounded-full bg-amber-400/30 hover:bg-amber-400/50
+                      className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30
                                  flex items-center justify-center text-white font-bold"
                     >
                       ✕
@@ -297,7 +297,7 @@ export default function FryerEquipment({
                   </div>
 
                   {/* 기름 온도 (물리 상태) */}
-                  <div className="p-3 bg-amber-50 border-b border-amber-200">
+                  <div className="p-3 bg-indigo-50 border-b border-gray-200">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-amber-700 font-medium flex items-center gap-1">
                         <span>🌡️</span> 기름 온도
@@ -329,16 +329,16 @@ export default function FryerEquipment({
                       return (
                         <div
                           key={number}
-                          className={`p-4 rounded-xl border-2 transition-all ${
+                          className={`p-4 rounded-xl border transition-all ${
                             status === 'EMPTY'
-                              ? 'bg-gray-50 border-gray-200'
+                              ? 'bg-white border-gray-200'
                               : status === 'BURNED'
-                                ? 'bg-gradient-to-r from-red-100 to-red-200 border-red-500 shadow-lg'
+                                ? 'bg-white border-red-200 shadow-md'
                                 : status === 'FRYING'
-                                  ? 'bg-gradient-to-r from-amber-100 to-orange-100 border-amber-400 shadow-lg'
+                                  ? 'bg-white border-amber-200 shadow-md'
                                   : status === 'LIFTED' && isComplete
-                                    ? 'bg-gradient-to-r from-blue-100 to-cyan-100 border-blue-400'
-                                    : 'bg-green-50 border-green-300'
+                                    ? 'bg-white border-blue-200 shadow-md'
+                                    : 'bg-white border-green-200 shadow-sm'
                           }`}
                         >
                           {/* v3.3: 바스켓 헤더 (isSubmerged 기반) */}

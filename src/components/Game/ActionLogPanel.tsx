@@ -18,10 +18,10 @@ export default function ActionLogPanel() {
   return (
     <div
       ref={logRef}
-      className="h-12 max-h-12 overflow-y-auto bg-[#FAFAFA] border border-[#E0E0E0] rounded p-1 text-[10px] space-y-0.5"
+      className="h-12 max-h-12 overflow-y-auto bg-white border border-gray-200 rounded-lg p-1 text-[10px] space-y-0.5"
     >
       {actionLogs.length === 0 && (
-        <p className="text-[#757575]">액션 로그가 여기 표시됩니다.</p>
+        <p className="text-gray-400">액션 로그가 여기 표시됩니다.</p>
       )}
       {actionLogs.map((log, i) => (
         <div

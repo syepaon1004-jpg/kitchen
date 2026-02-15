@@ -20,8 +20,8 @@ export default function RecipeGuide() {
   }
 
   return (
-    <div className="shrink-0 bg-blue-50 border-t-2 border-blue-300 p-2 lg:p-4">
-      <h4 className="font-bold text-[#333] mb-2 lg:mb-3 text-xs lg:text-sm">📋 레시피 가이드 (정답지)</h4>
+    <div className="shrink-0 bg-white border-t border-gray-200 p-2 lg:p-4">
+      <h4 className="font-bold text-gray-700 mb-2 lg:mb-3 text-xs lg:text-sm">📋 레시피 가이드 (정답지)</h4>
       <div className="flex flex-col lg:grid lg:grid-cols-3 gap-2 lg:gap-4">
         {woks.map((wok) => {
           const recipe = wok.currentMenu ? getRecipeByMenuName(wok.currentMenu) : null
@@ -37,10 +37,10 @@ export default function RecipeGuide() {
           return (
             <div
               key={wok.burnerNumber}
-              className={`rounded-lg p-2 lg:p-3 border-2 ${
+              className={`rounded-lg p-2 lg:p-3 border ${
                 wok.currentMenu
-                  ? 'bg-white border-blue-400'
-                  : 'bg-gray-100 border-gray-300 opacity-60'
+                  ? 'bg-white border-gray-200'
+                  : 'bg-indigo-50 border-gray-300 opacity-60'
               }`}
             >
               <div className="flex items-center justify-between mb-1 lg:mb-2">

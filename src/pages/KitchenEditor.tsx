@@ -506,7 +506,7 @@ export default function KitchenEditor() {
     : null
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
+    <div className="min-h-screen bg-indigo-50 p-4">
       {/* 토스트 */}
       {toast && (
         <div
@@ -603,7 +603,7 @@ export default function KitchenEditor() {
                   <button
                     key={type}
                     onClick={() => handlePaletteClick(type)}
-                    className="px-2 py-1 bg-gray-100 hover:bg-blue-100 rounded text-sm border border-gray-200 hover:border-blue-300 transition flex items-center gap-1"
+                    className="px-2 py-1 bg-indigo-50 hover:bg-blue-100 rounded text-sm border border-gray-200 hover:border-blue-300 transition flex items-center gap-1"
                     title={`${type} 추가`}
                   >
                     <span>{EQUIPMENT_ICONS[type]}</span>
@@ -639,7 +639,7 @@ export default function KitchenEditor() {
                           ? 'border-blue-500 bg-blue-50'
                           : overlappingIds.has(eq.id)
                           ? 'border-red-500 bg-red-50'
-                          : 'border-gray-200 hover:bg-gray-50'
+                          : 'border-gray-200 hover:bg-indigo-50'
                       }`}
                     >
                       <span className="text-xl">{EQUIPMENT_ICONS[eq.equipment_type]}</span>
@@ -927,7 +927,7 @@ export default function KitchenEditor() {
               </GridLayout>
             </div>
           ) : (
-            <div className="h-64 bg-gray-100 rounded flex items-center justify-center text-gray-400">
+            <div className="h-64 bg-indigo-50 rounded flex items-center justify-center text-gray-400">
               매장을 선택하세요
             </div>
           )}
@@ -964,7 +964,7 @@ function EquipmentConfigForm({
   switch (type) {
     case 'BURNER':
       return (
-        <div className="space-y-2 p-2 bg-gray-50 rounded">
+        <div className="space-y-2 p-2 bg-indigo-50 rounded">
           <div className="text-xs font-bold text-gray-500">BURNER 설정</div>
           <div className="flex items-center gap-2">
             <input
@@ -988,7 +988,7 @@ function EquipmentConfigForm({
 
     case 'SINK':
       return (
-        <div className="space-y-2 p-2 bg-gray-50 rounded">
+        <div className="space-y-2 p-2 bg-indigo-50 rounded">
           <div className="text-xs font-bold text-gray-500">SINK 설정</div>
           <div className="flex items-center gap-2">
             <input
@@ -1003,7 +1003,7 @@ function EquipmentConfigForm({
 
     case 'DRAWER_FRIDGE':
       return (
-        <div className="space-y-2 p-2 bg-gray-50 rounded">
+        <div className="space-y-2 p-2 bg-indigo-50 rounded">
           <div className="text-xs font-bold text-gray-500">DRAWER_FRIDGE 설정</div>
           <div>
             <label className="block text-xs text-gray-600">서랍 배치 (예: 2x2)</label>
@@ -1020,7 +1020,7 @@ function EquipmentConfigForm({
 
     case 'FRIDGE_4BOX':
       return (
-        <div className="space-y-2 p-2 bg-gray-50 rounded">
+        <div className="space-y-2 p-2 bg-indigo-50 rounded">
           <div className="text-xs font-bold text-gray-500">FRIDGE_4BOX 설정</div>
           <div className="flex items-center gap-2">
             <input
@@ -1035,7 +1035,7 @@ function EquipmentConfigForm({
 
     case 'FRYER':
       return (
-        <div className="space-y-2 p-2 bg-gray-50 rounded">
+        <div className="space-y-2 p-2 bg-indigo-50 rounded">
           <div className="text-xs font-bold text-gray-500">FRYER 설정</div>
           <div>
             <label className="block text-xs text-gray-600">최대 온도</label>
@@ -1060,7 +1060,7 @@ function EquipmentConfigForm({
 
     case 'SEASONING_COUNTER':
       return (
-        <div className="space-y-2 p-2 bg-gray-50 rounded">
+        <div className="space-y-2 p-2 bg-indigo-50 rounded">
           <div className="text-xs font-bold text-gray-500">SEASONING_COUNTER 설정</div>
           <div>
             <label className="block text-xs text-gray-600">위치</label>
@@ -1078,7 +1078,7 @@ function EquipmentConfigForm({
 
     case 'PREP_TABLE':
       return (
-        <div className="space-y-2 p-2 bg-gray-50 rounded">
+        <div className="space-y-2 p-2 bg-indigo-50 rounded">
           <div className="text-xs font-bold text-gray-500">PREP_TABLE 설정</div>
           <div>
             <label className="block text-xs text-gray-600">슬롯 수</label>
@@ -1102,7 +1102,7 @@ function EquipmentConfigForm({
 
     case 'MICROWAVE':
       return (
-        <div className="space-y-2 p-2 bg-gray-50 rounded">
+        <div className="space-y-2 p-2 bg-indigo-50 rounded">
           <div className="text-xs font-bold text-gray-500">MICROWAVE 설정</div>
           <div>
             <label className="block text-xs text-gray-600">모드 (콤마 구분)</label>
@@ -1127,7 +1127,7 @@ function EquipmentConfigForm({
 
     default:
       return (
-        <div className="p-2 bg-gray-50 rounded text-xs text-gray-400">
+        <div className="p-2 bg-indigo-50 rounded text-xs text-gray-400">
           이 장비 타입에 대한 추가 설정이 없습니다.
         </div>
       )

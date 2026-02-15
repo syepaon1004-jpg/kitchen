@@ -42,7 +42,7 @@ export default function AppHeader() {
   return (
     <>
       {/* Desktop Header - 기존 코드 유지 */}
-      <header className="hidden lg:flex h-16 bg-gray-800 text-white px-4 shrink-0 items-center">
+      <header className="hidden lg:flex h-16 bg-white border-b border-gray-200 text-gray-800 px-4 shrink-0 items-center shadow-sm">
         <div className="flex justify-between items-center flex-wrap gap-2 w-full">
           <div className="flex gap-4 flex-wrap">
             <div>🏪 {currentStore?.store_name || '매장 미선택'}</div>
@@ -55,7 +55,7 @@ export default function AppHeader() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded font-medium transition"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition text-sm"
               >
                 🔓 로그아웃
               </button>
@@ -63,7 +63,7 @@ export default function AppHeader() {
             <button
               type="button"
               onClick={handleReset}
-              className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded font-medium transition"
+              className="bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg font-medium transition text-sm"
             >
               🏠 처음으로
             </button>

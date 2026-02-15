@@ -3,7 +3,6 @@ import { motion } from 'framer-motion'
 import { createPortal } from 'react-dom'
 import { useSound } from '../../hooks/useSound'
 import { useGameStore } from '../../stores/gameStore'
-import type { MenuOrder } from '../../types/database.types'
 
 interface SelectedIngredientItem {
   id: string
@@ -35,11 +34,10 @@ const STEP_SECONDS = 10
 
 /**
  * 전자레인지 설정 팝업
- * - 주문 선택: WAITING 상태 + MICROWAVE 묶음이 있는 메뉴만
- * - 복수 선택 가능
+ * - 재료 수량 입력
  * - 타이머: 1초 ~ 300초 (10초 단위)
  * - 파워: 약/중/강
- * v3.1 Fix: MICROWAVE 묶음 필터링 + 복수 선택
+ * - 주문은 자동 선택 (첫 번째 사용 가능한 주문)
  */
 export default function MicrowaveSetupPopup({
   ingredients,
@@ -50,13 +48,6 @@ export default function MicrowaveSetupPopup({
   const { menuQueue, microwaveState, recipeBundles, getRecipeByMenuName } = useGameStore()
   const [timerSeconds, setTimerSeconds] = useState(60)
   const [power, setPower] = useState<PowerLevel>('MEDIUM')
-  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(() => {
-    // 기본값: 전자레인지에 배정된 주문이 있으면 그것 선택
-    if (microwaveState.currentItem?.orderId) {
-      return new Set([microwaveState.currentItem.orderId])
-    }
-    return new Set()
-  })
   // v3.1: 각 재료별 수량 입력
   const [ingredientAmounts, setIngredientAmounts] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {}
@@ -175,20 +166,6 @@ export default function MicrowaveSetupPopup({
     microwaveCurrentOrderId: microwaveState.currentItem?.orderId,
   })
 
-  // 주문 토글
-  const toggleOrder = (orderId: string) => {
-    playSound('click')
-    setSelectedOrderIds((prev) => {
-      const newSet = new Set(prev)
-      if (newSet.has(orderId)) {
-        newSet.delete(orderId)
-      } else {
-        newSet.add(orderId)
-      }
-      return newSet
-    })
-  }
-
   const handleDecrease = () => {
     playSound('click')
     setTimerSeconds((prev) => Math.max(MIN_SECONDS, prev - STEP_SECONDS))
@@ -200,30 +177,20 @@ export default function MicrowaveSetupPopup({
   }
 
   const handleConfirm = () => {
-    if (selectedOrderIds.size === 0) return
+    // 자동으로 첫 번째 사용 가능한 주문 선택
+    const firstOrder = selectableOrders[0]
+    if (!firstOrder) return
     playSound('confirm')
 
-    // v3.3 Fix: 모든 선택된 주문에 대해 처리 (복수 선택 지원)
-    const orderIds = Array.from(selectedOrderIds)
-
-    // v3.1: 재료 정보 생성 (모든 주문에 동일하게 적용)
     const ingredientList = ingredients.map((ing) => ({
       name: ing.name,
       amount: ingredientAmounts[ing.id] || ing.amount,
       unit: ing.unit,
     }))
 
-    // 각 주문에 대해 onConfirm 호출
-    orderIds.forEach((orderId) => {
-      const order = menuQueue.find((o) => o.id === orderId)
-      if (!order) return
-
-      // v3.1 Fix: 항상 선택한 재료 기반으로 bundleId 찾기
-      const bundleId = getMicrowaveBundleIdForIngredients(order.menuName, ingredients)
-
-      console.log(`📡 전자레인지 시작: ${order.menuName} (orderId=${orderId}, bundleId=${bundleId})`)
-      onConfirm(timerSeconds, power, orderId, bundleId, ingredientList)
-    })
+    const bundleId = getMicrowaveBundleIdForIngredients(firstOrder.menuName, ingredients)
+    console.log(`📡 전자레인지 시작: ${firstOrder.menuName} (orderId=${firstOrder.id}, bundleId=${bundleId})`)
+    onConfirm(timerSeconds, power, firstOrder.id, bundleId, ingredientList)
   }
 
   const handleCancel = () => {
@@ -235,23 +202,6 @@ export default function MicrowaveSetupPopup({
     const min = Math.floor(seconds / 60)
     const sec = seconds % 60
     return `${min}:${sec.toString().padStart(2, '0')}`
-  }
-
-  // 주문 상태에 따른 UI 정보
-  const getOrderStatusInfo = (order: MenuOrder) => {
-    // 전자레인지에 배정된 주문
-    if (microwaveState.currentItem?.orderId === order.id) {
-      return { label: '전자레인지 배정됨', color: 'bg-slate-100 border-slate-400', emoji: '📡', selectable: true }
-    }
-    // WAITING 상태
-    if (order.status === 'WAITING') {
-      return { label: '대기 중', color: 'bg-blue-100 border-blue-400', emoji: '⏳', selectable: true }
-    }
-    // COOKING 상태 (v3.1 Fix: MIXED 메뉴의 다른 묶음이 조리 중일 때도 선택 가능)
-    if (order.status === 'COOKING') {
-      return { label: '다른 묶음 조리 중', color: 'bg-amber-100 border-amber-400', emoji: '🔥', selectable: true }
-    }
-    return { label: '사용 불가', color: 'bg-gray-100 border-gray-300', emoji: '❌', selectable: false }
   }
 
   return createPortal(
@@ -272,32 +222,32 @@ export default function MicrowaveSetupPopup({
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
           className="w-[calc(100vw-2rem)] max-w-md max-h-[90vh] overflow-y-auto
-                     bg-gradient-to-br from-slate-100 to-slate-200
-                     rounded-xl shadow-2xl border-4 border-slate-500 pointer-events-auto"
+                     bg-white
+                     rounded-2xl shadow-2xl pointer-events-auto"
         >
         {/* 헤더 */}
-        <div className="p-4 border-b border-slate-300 bg-gradient-to-r from-slate-600 to-slate-700">
+        <div className="p-4 border-b border-gray-300 bg-gray-700 rounded-t-2xl">
           <h3 className="font-bold text-white text-lg flex items-center gap-2">
             <span className="text-2xl">📡</span>
             전자레인지 설정
           </h3>
-          <p className="text-slate-200 text-xs mt-1">
-            주문을 선택하고 타이머와 파워를 설정하세요
+          <p className="text-white/80 text-xs mt-1">
+            타이머와 파워를 설정하세요
           </p>
         </div>
 
         {/* 선택된 재료 + 수량 입력 */}
-        <div className="p-4 bg-slate-50 border-b border-slate-200">
-          <div className="text-xs font-medium text-slate-500 mb-3">조리할 재료 (수량을 입력하세요)</div>
+        <div className="p-4 bg-indigo-50 border-b border-gray-200">
+          <div className="text-xs font-medium text-gray-500 mb-3">조리할 재료 (수량을 입력하세요)</div>
           <div className="space-y-2">
             {ingredients.map((ing) => (
               <div
                 key={ing.id}
-                className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-lg"
+                className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg"
               >
                 <div className="flex-1">
-                  <div className="font-bold text-slate-800 text-sm">{ing.name}</div>
-                  <div className="text-xs text-slate-500">기본: {ing.amount}{ing.unit}</div>
+                  <div className="font-bold text-gray-800 text-sm">{ing.name}</div>
+                  <div className="text-xs text-gray-500">기본: {ing.amount}{ing.unit}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -309,7 +259,7 @@ export default function MicrowaveSetupPopup({
                         [ing.id]: Math.max(1, (prev[ing.id] || ing.amount) - 1)
                       }))
                     }}
-                    className="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold flex items-center justify-center"
+                    className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold flex items-center justify-center"
                   >
                     −
                   </button>
@@ -323,13 +273,13 @@ export default function MicrowaveSetupPopup({
                       }
                     }}
                     onFocus={(e) => e.target.select()}
-                    className="w-16 text-center bg-white border-2 border-slate-300 rounded py-1 font-bold text-slate-800
-                               focus:border-slate-500 outline-none
+                    className="w-16 text-center bg-white border-2 border-gray-300 rounded py-1 font-bold text-gray-800
+                               focus:border-gray-500 outline-none
                                [&::-webkit-inner-spin-button]:appearance-none
                                [&::-webkit-outer-spin-button]:appearance-none"
                     min={1}
                   />
-                  <span className="text-xs text-slate-600 font-medium w-8">{ing.unit}</span>
+                  <span className="text-xs text-gray-600 font-medium w-8">{ing.unit}</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -339,7 +289,7 @@ export default function MicrowaveSetupPopup({
                         [ing.id]: (prev[ing.id] || ing.amount) + 1
                       }))
                     }}
-                    className="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold flex items-center justify-center"
+                    className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold flex items-center justify-center"
                   >
                     +
                   </button>
@@ -349,75 +299,16 @@ export default function MicrowaveSetupPopup({
           </div>
         </div>
 
-        {/* 주문 선택 (복수 선택 가능) */}
-        <div className="p-4 border-b border-slate-200">
-          <div className="text-sm font-bold text-slate-700 mb-3 flex items-center justify-between">
-            <span>주문 선택</span>
-            <span className="text-xs font-normal text-slate-500">
-              {selectedOrderIds.size > 0 && `${selectedOrderIds.size}개 선택됨`}
-            </span>
-          </div>
-          {selectableOrders.length === 0 ? (
-            <div className="text-center text-slate-500 py-4">
-              <div className="text-lg mb-1">전자레인지 조리가 필요한 주문이 없습니다</div>
-              <div className="text-xs text-slate-400">
-                MICROWAVE 묶음이 포함된 주문을 기다려주세요
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {selectableOrders.map((order) => {
-                const info = getOrderStatusInfo(order)
-                const isSelected = selectedOrderIds.has(order.id)
-
-                return (
-                  <button
-                    key={order.id}
-                    type="button"
-                    onClick={() => toggleOrder(order.id)}
-                    disabled={!info.selectable}
-                    className={`w-full p-3 rounded-xl border-2 transition-all flex items-center gap-3 ${
-                      isSelected
-                        ? 'bg-gradient-to-r from-slate-500 to-slate-600 border-slate-700 text-white shadow-lg'
-                        : info.selectable
-                        ? 'bg-white border-slate-200 text-slate-700 hover:border-slate-400'
-                        : `${info.color} opacity-60 cursor-not-allowed`
-                    }`}
-                  >
-                    {/* 체크박스 */}
-                    <div className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
-                      isSelected
-                        ? 'bg-white border-white text-slate-600'
-                        : 'border-slate-300 text-transparent'
-                    }`}>
-                      ✓
-                    </div>
-                    <div className="text-2xl">{info.emoji}</div>
-                    <div className="flex-1 text-left">
-                      <div className={`font-bold ${isSelected ? 'text-white' : ''}`}>
-                        {order.menuName}
-                      </div>
-                      <div className={`text-xs ${isSelected ? 'text-slate-200' : 'text-slate-500'}`}>
-                        {info.label}
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
         {/* 타이머 설정 */}
-        <div className="p-4 border-b border-slate-200">
-          <div className="text-sm font-bold text-slate-700 mb-3">타이머</div>
+        <div className="p-4 border-b border-gray-200">
+          <div className="text-sm font-bold text-gray-700 mb-3">타이머</div>
           <div className="flex items-center justify-center gap-4">
             <button
               type="button"
               onClick={handleDecrease}
               disabled={timerSeconds <= MIN_SECONDS}
-              className="w-12 h-12 rounded-full bg-slate-200 hover:bg-slate-300
-                         text-slate-700 font-bold text-2xl
+              className="w-12 h-12 rounded-full bg-gray-200 hover:bg-gray-300
+                         text-gray-700 font-bold text-2xl
                          disabled:opacity-40 disabled:cursor-not-allowed
                          transition-colors flex items-center justify-center"
             >
@@ -435,14 +326,14 @@ export default function MicrowaveSetupPopup({
                   }
                 }}
                 onFocus={(e) => e.target.select()}
-                className="w-full text-4xl font-bold text-slate-800 font-mono text-center
-                           bg-transparent border-b-2 border-slate-300 focus:border-slate-500
+                className="w-full text-4xl font-bold text-gray-800 font-mono text-center
+                           bg-transparent border-b-2 border-gray-300 focus:border-gray-500
                            outline-none appearance-none [&::-webkit-inner-spin-button]:appearance-none
                            [&::-webkit-outer-spin-button]:appearance-none"
                 min={MIN_SECONDS}
                 max={MAX_SECONDS}
               />
-              <div className="text-xs text-slate-500 mt-1">
+              <div className="text-xs text-gray-500 mt-1">
                 초 ({formatTime(timerSeconds)})
               </div>
             </div>
@@ -451,8 +342,8 @@ export default function MicrowaveSetupPopup({
               type="button"
               onClick={handleIncrease}
               disabled={timerSeconds >= MAX_SECONDS}
-              className="w-12 h-12 rounded-full bg-slate-200 hover:bg-slate-300
-                         text-slate-700 font-bold text-2xl
+              className="w-12 h-12 rounded-full bg-gray-200 hover:bg-gray-300
+                         text-gray-700 font-bold text-2xl
                          disabled:opacity-40 disabled:cursor-not-allowed
                          transition-colors flex items-center justify-center"
             >
@@ -472,8 +363,8 @@ export default function MicrowaveSetupPopup({
                 }}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                   timerSeconds === sec
-                    ? 'bg-slate-600 text-white'
-                    : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                    ? 'bg-gray-600 text-white'
+                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                 }`}
               >
                 {sec >= 60 ? `${sec / 60}분` : `${sec}초`}
@@ -484,7 +375,7 @@ export default function MicrowaveSetupPopup({
 
         {/* 파워 선택 */}
         <div className="p-4">
-          <div className="text-sm font-bold text-slate-700 mb-3">파워</div>
+          <div className="text-sm font-bold text-gray-700 mb-3">파워</div>
           <div className="grid grid-cols-3 gap-3">
             {POWER_OPTIONS.map((option) => (
               <button
@@ -497,7 +388,7 @@ export default function MicrowaveSetupPopup({
                 className={`p-3 rounded-xl border-2 transition-all ${
                   power === option.value
                     ? `bg-gradient-to-r ${option.color} border-transparent text-white shadow-lg scale-105`
-                    : 'bg-white border-slate-200 text-slate-700 hover:border-slate-400'
+                    : 'bg-white border-gray-200 text-gray-700 hover:border-gray-400'
                 }`}
               >
                 <div className="text-2xl text-center">{option.emoji}</div>
@@ -508,7 +399,7 @@ export default function MicrowaveSetupPopup({
         </div>
 
         {/* 하단 버튼 */}
-        <div className="p-4 border-t border-slate-300 bg-slate-100 flex gap-3">
+        <div className="p-4 border-t border-gray-300 bg-indigo-50 flex gap-3">
           <button
             type="button"
             onClick={handleCancel}
@@ -520,13 +411,13 @@ export default function MicrowaveSetupPopup({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={selectedOrderIds.size === 0 || selectableOrders.length === 0}
-            className="flex-1 py-3 rounded-lg bg-gradient-to-r from-slate-500 to-slate-600
-                       hover:from-slate-600 hover:to-slate-700
+            disabled={selectableOrders.length === 0}
+            className="flex-1 py-3 rounded-lg bg-gray-700
+                       hover:bg-gray-800
                        text-white font-bold text-sm shadow-md
                        disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            시작 ({selectedOrderIds.size}개)
+            시작
           </button>
         </div>
         </motion.div>

@@ -170,17 +170,7 @@ export default function StorageEquipment({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className={`w-full h-full rounded-lg p-1 lg:p-2 flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-all border ${
-          equipmentType === 'FREEZER'
-            ? 'bg-gradient-to-br from-blue-200 via-blue-100 to-blue-200 border-blue-300'
-            : 'bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 border-gray-300'
-        }`}
-        style={{
-          backgroundImage: equipmentType === 'FREEZER'
-            ? `linear-gradient(135deg, rgba(200,220,255,0.8) 0%, rgba(180,200,240,0.3) 50%, rgba(200,220,255,0.8) 100%)`
-            : `linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(200,200,200,0.3) 50%, rgba(255,255,255,0.8) 100%)`,
-          boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.9), 0 2px 8px rgba(0,0,0,0.1)',
-        }}
+        className="w-full h-full bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all p-1 lg:p-2 flex flex-col items-center justify-center cursor-pointer"
       >
         <div className="text-2xl lg:text-3xl mb-1">
           {equipmentType === 'FREEZER' ? '🧊' : equipmentType === 'DRAWER_FRIDGE' ? '🗄️' : '❄️'}
@@ -213,7 +203,7 @@ export default function StorageEquipment({
                   setIsOpen(false)
                   setSelectedBox(null)
                 }}
-                className="absolute top-4 right-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition shadow-lg z-10 text-sm"
+                className="absolute top-4 right-4 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-gray-700 rounded-lg transition shadow-lg z-10 text-sm"
               >
                 ✕ 닫기
               </button>
@@ -248,37 +238,16 @@ export default function StorageEquipment({
                           // 서랍형 (DRAWER_FRIDGE, FREEZER): 바로 GridPopup 열기
                           <button
                             onClick={() => handleDrawerClick(locationId)}
-                            className={`w-full h-full rounded-lg shadow-lg border-2 font-bold text-sm flex flex-col items-center justify-center gap-2 hover:scale-105 transition-transform ${
-                              equipmentType === 'FREEZER'
-                                ? 'bg-gradient-to-br from-blue-100 via-blue-50 to-blue-100 border-blue-300 text-blue-700'
-                                : 'bg-gradient-to-br from-gray-100 via-gray-50 to-gray-100 border-gray-300 text-gray-700'
-                            }`}
-                            style={{
-                              backgroundImage: equipmentType === 'FREEZER'
-                                ? `linear-gradient(135deg, rgba(220,235,255,0.9) 0%, rgba(200,220,250,0.5) 50%, rgba(220,235,255,0.9) 100%)`
-                                : `linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(220,220,220,0.5) 50%, rgba(255,255,255,0.9) 100%)`,
-                              boxShadow: 'inset 0 2px 4px rgba(255,255,255,1), 0 4px 8px rgba(0,0,0,0.15)',
-                            }}
+                            className="w-full h-full bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all font-bold text-sm flex flex-col items-center justify-center gap-2 text-gray-700"
                           >
-                            <div className={`w-12 h-1.5 rounded-full shadow-md ${
-                              equipmentType === 'FREEZER' ? 'bg-blue-400' : 'bg-gray-400'
-                            }`} />
+                            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
                             <div className="text-sm font-bold">{label}</div>
                           </button>
                         ) : !isSelected ? (
                           // 4호박스: 칸 선택
                           <button
                             onClick={() => setSelectedBox(locationId)}
-                            className="w-full h-full rounded-lg bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 shadow-lg border-2 border-gray-300 text-gray-700 font-bold flex items-center justify-center hover:scale-105 transition-transform"
-                            style={{
-                              backgroundImage: `
-                                linear-gradient(135deg,
-                                  rgba(255,255,255,0.9) 0%,
-                                  rgba(220,220,220,0.5) 50%,
-                                  rgba(255,255,255,0.9) 100%)
-                              `,
-                              boxShadow: 'inset 0 2px 4px rgba(255,255,255,1), 0 4px 8px rgba(0,0,0,0.2)',
-                            }}
+                            className="w-full h-full bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all text-gray-700 font-bold flex items-center justify-center"
                           >
                             <div className="flex flex-col items-center gap-1">
                               <div className="text-2xl">❄️</div>
@@ -287,12 +256,12 @@ export default function StorageEquipment({
                           </button>
                         ) : (
                           // 4호박스: 층 선택 UI
-                          <div className="w-full h-full rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-300 flex flex-col items-center justify-center gap-2 p-3 shadow-lg">
+                          <div className="w-full h-full rounded-xl bg-white border border-gray-200 flex flex-col items-center justify-center gap-2 p-3 shadow-sm">
                             <div className="text-xs font-bold text-gray-800">{label}</div>
 
                             <button
                               onClick={() => handleFloorSelect(locationId, 1)}
-                              className="w-full py-2 rounded-lg bg-white border-2 border-blue-400 text-blue-700 font-bold hover:bg-blue-50 transition shadow-md text-xs"
+                              className="w-full py-2 bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 rounded-lg shadow-sm font-bold transition text-xs"
                             >
                               1️⃣ 1층
                             </button>
@@ -300,7 +269,7 @@ export default function StorageEquipment({
                             {hasFloor2 && (
                               <button
                                 onClick={() => handleFloorSelect(locationId, 2)}
-                                className="w-full py-2 rounded-lg bg-white border-2 border-blue-400 text-blue-700 font-bold hover:bg-blue-50 transition shadow-md text-xs"
+                                className="w-full py-2 bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 rounded-lg shadow-sm font-bold transition text-xs"
                               >
                                 2️⃣ 2층
                               </button>
@@ -308,7 +277,7 @@ export default function StorageEquipment({
 
                             <button
                               onClick={() => setSelectedBox(null)}
-                              className="mt-1 px-3 py-1 rounded bg-gray-300 text-gray-700 text-[10px] hover:bg-gray-400 transition shadow-md"
+                              className="mt-1 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-gray-700 rounded-lg text-[10px] transition"
                             >
                               취소
                             </button>
@@ -336,7 +305,7 @@ export default function StorageEquipment({
                 setSelectedBox(null)
               }
             }}
-            className="fixed top-4 left-4 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition shadow-lg z-[60] text-sm"
+            className="fixed top-4 left-4 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-gray-700 rounded-lg transition shadow-lg z-[60] text-sm"
           >
             ← 뒤로
           </button>

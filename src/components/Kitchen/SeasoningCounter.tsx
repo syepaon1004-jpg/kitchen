@@ -73,7 +73,7 @@ export default function SeasoningCounter({ onSelectSeasoning }: SeasoningCounter
               )}
             </button>
           ) : (
-            <div key={`empty-${i}`} className="min-h-[70px] rounded-lg bg-gray-100 border border-gray-200" />
+            <div key={`empty-${i}`} className="min-h-[70px] rounded-lg bg-indigo-100 border border-gray-200" />
           )
         )}
       </div>

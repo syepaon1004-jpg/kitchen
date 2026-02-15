@@ -85,7 +85,7 @@ export default function FryerSetupPopup({
   const getBasketStatusInfo = (basket: FryerBasket) => {
     // orderId 없음 → 비어있음
     if (!basket.orderId) {
-      return { label: '비어있음', color: 'bg-gray-100 border-gray-300', emoji: '🧺', selectable: false }
+      return { label: '비어있음', color: 'bg-indigo-100 border-gray-300', emoji: '🧺', selectable: false }
     }
 
     // BURNED 상태

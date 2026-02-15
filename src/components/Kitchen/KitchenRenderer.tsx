@@ -17,12 +17,12 @@ interface KitchenRendererProps {
 export default function KitchenRenderer({ gridData, equipment }: KitchenRendererProps) {
   return (
     <div
-      className="w-full bg-gray-800 rounded-xl p-2"
+      className="w-full bg-indigo-50 rounded-2xl p-3"
       style={{
         display: 'grid',
         gridTemplateColumns: `repeat(${gridData.grid_cols}, minmax(48px, 1fr))`,
         gridTemplateRows: `repeat(${gridData.grid_rows}, minmax(48px, 1fr))`,
-        gap: '4px',
+        gap: '6px',
         aspectRatio: `${gridData.grid_cols} / ${gridData.grid_rows}`,
       }}
     >

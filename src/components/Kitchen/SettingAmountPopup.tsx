@@ -139,15 +139,15 @@ export default function SettingAmountPopup({
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-2xl overflow-hidden max-w-lg w-full max-h-[80vh] flex flex-col"
+        className="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-lg w-full max-h-[80vh] flex flex-col"
       >
         {/* 헤더 */}
-        <div className="p-4 border-b bg-gradient-to-r from-purple-500 to-pink-500 flex justify-between items-center">
+        <div className="p-4 border-b bg-purple-500 rounded-t-2xl flex justify-between items-center">
           <div>
             <h3 className="font-bold text-white text-lg">
               {phase === 'INPUT' ? '세팅존에 꺼내놓기' : '재료 준비 완료'}
             </h3>
-            <p className="text-purple-100 text-xs mt-1">
+            <p className="text-white/80 text-xs mt-1">
               {phase === 'INPUT'
                 ? `${ingredients.length}개 재료의 양을 입력하세요`
                 : '데코존으로 이동하거나 계속 조리하세요'}
@@ -175,11 +175,11 @@ export default function SettingAmountPopup({
               className="flex-1 overflow-y-auto"
             >
               {/* 재료 목록 */}
-              <div className="p-4 bg-gray-50 space-y-3">
+              <div className="p-4 bg-indigo-50 space-y-3">
                 {ingredients.map((ing, index) => (
                   <div
                     key={ing.id}
-                    className="bg-white rounded-lg border-2 border-gray-200 p-4 shadow-sm"
+                    className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div>
@@ -201,7 +201,7 @@ export default function SettingAmountPopup({
                         value={amounts[ing.id] || 0}
                         onChange={(e) => handleAmountChange(ing.id, e.target.value)}
                         onKeyDown={handleKeyDown(ing.id, index)}
-                        className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg text-center font-bold text-gray-800 text-lg focus:border-purple-500 focus:outline-none"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-center font-bold text-gray-800 text-lg focus:border-purple-500 focus:outline-none"
                       />
                       <span className="text-sm text-gray-600 font-medium min-w-[40px]">
                         {ing.unit}
@@ -227,14 +227,14 @@ export default function SettingAmountPopup({
                     playSound('cancel')
                     onCancel()
                   }}
-                  className="px-6 py-2 rounded bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold text-sm"
+                  className="px-6 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm"
                 >
                   취소
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmAmounts}
-                  className="px-6 py-2 rounded bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold text-sm shadow-lg"
+                  className="px-6 py-2 rounded bg-purple-500 hover:bg-purple-600 text-white font-bold text-sm"
                 >
                   ✓ 선택 완료
                 </button>
@@ -250,7 +250,7 @@ export default function SettingAmountPopup({
             >
               {/* 완료 표시 */}
               <div className="text-center mb-6">
-                <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-4xl shadow-lg mb-4">
+                <div className="w-20 h-20 mx-auto rounded-full bg-green-500 flex items-center justify-center text-4xl shadow-lg mb-4">
                   ✓
                 </div>
                 <div className="text-gray-800 font-bold text-lg">재료가 준비되었습니다!</div>
@@ -260,7 +260,7 @@ export default function SettingAmountPopup({
               </div>
 
               {/* 추가된 재료 요약 */}
-              <div className="bg-gray-50 rounded-lg p-3 mb-6">
+              <div className="bg-indigo-50 rounded-lg p-3 mb-6">
                 <div className="text-xs font-medium text-gray-500 mb-2">꺼내놓은 재료</div>
                 <div className="flex flex-wrap gap-2">
                   {ingredients.map((ing) => {
@@ -283,14 +283,14 @@ export default function SettingAmountPopup({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="flex-1 py-3 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-sm"
+                  className="flex-1 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm"
                 >
                   닫기
                 </button>
                 <button
                   type="button"
                   onClick={handleMoveToDecoZone}
-                  className="flex-1 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2"
+                  className="flex-1 py-3 rounded-lg bg-purple-500 hover:bg-purple-600 text-white font-bold text-sm flex items-center justify-center gap-2"
                 >
                   <span>🎨</span>
                   <span>데코존으로 이동</span>

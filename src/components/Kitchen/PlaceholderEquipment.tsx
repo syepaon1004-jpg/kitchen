@@ -23,7 +23,7 @@ const EQUIPMENT_EMOJI: Record<EquipmentType, string> = {
   PLATING_STATION: '🍽️',
   CUTTING_BOARD: '🔪',
   MICROWAVE: '📡',
-  FREEZER: '🧊',        // v3.1
+  FREEZER: '🧊',
   TORCH: '🔦',
   COLD_TABLE: '🧊',
   PREP_TABLE: '🪵',
@@ -32,55 +32,40 @@ const EQUIPMENT_EMOJI: Record<EquipmentType, string> = {
   GRILL: '🥩',
 }
 
-// 장비 타입별 배경색
-const EQUIPMENT_COLORS: Record<EquipmentType, string> = {
-  BURNER: 'bg-orange-600',
-  SINK: 'bg-blue-500',
-  DRAWER_FRIDGE: 'bg-cyan-600',
-  FRIDGE_4BOX: 'bg-cyan-700',
-  SEASONING_COUNTER: 'bg-amber-600',
-  FRYER: 'bg-yellow-600',
-  PLATING_STATION: 'bg-purple-600',
-  CUTTING_BOARD: 'bg-lime-600',
-  MICROWAVE: 'bg-gray-600',
-  FREEZER: 'bg-blue-900',    // v3.1
-  TORCH: 'bg-red-500',
-  COLD_TABLE: 'bg-sky-600',
-  PREP_TABLE: 'bg-stone-500',
-  WORKTABLE: 'bg-stone-600',
-  PASS: 'bg-teal-600',
-  GRILL: 'bg-red-700',
+// 장비 타입별 텍스트 색상 (라이트 테마)
+const EQUIPMENT_TEXT_COLORS: Record<EquipmentType, string> = {
+  BURNER: 'text-orange-600',
+  SINK: 'text-blue-500',
+  DRAWER_FRIDGE: 'text-cyan-600',
+  FRIDGE_4BOX: 'text-cyan-700',
+  SEASONING_COUNTER: 'text-amber-600',
+  FRYER: 'text-amber-600',
+  PLATING_STATION: 'text-purple-600',
+  CUTTING_BOARD: 'text-lime-600',
+  MICROWAVE: 'text-gray-600',
+  FREEZER: 'text-blue-700',
+  TORCH: 'text-red-500',
+  COLD_TABLE: 'text-sky-600',
+  PREP_TABLE: 'text-stone-500',
+  WORKTABLE: 'text-stone-600',
+  PASS: 'text-teal-600',
+  GRILL: 'text-red-700',
 }
 
 export default function PlaceholderEquipment({
-  equipmentKey,
   equipmentType,
   displayName,
 }: EquipmentComponentProps) {
   const emoji = EQUIPMENT_EMOJI[equipmentType] || '❓'
-  const bgColor = EQUIPMENT_COLORS[equipmentType] || 'bg-gray-500'
+  const textColor = EQUIPMENT_TEXT_COLORS[equipmentType] || 'text-gray-500'
 
   return (
     <div
-      className={`
-        ${bgColor}
-        w-full h-full
-        flex flex-col items-center justify-center
-        rounded-lg
-        text-white
-        border-2 border-white/20
-        shadow-md
-        transition-all
-        hover:brightness-110
-        cursor-pointer
-      `}
+      className="bg-white w-full h-full flex flex-col items-center justify-center rounded-xl border border-gray-200 shadow-sm transition-all hover:shadow-md cursor-pointer"
     >
       <span className="text-2xl md:text-3xl">{emoji}</span>
-      <span className="text-xs md:text-sm font-medium mt-1 text-center px-1 truncate max-w-full">
+      <span className={`text-xs md:text-sm font-medium mt-1 text-center px-1 truncate max-w-full ${textColor}`}>
         {displayName}
-      </span>
-      <span className="text-[10px] opacity-60 truncate max-w-full">
-        {equipmentKey}
       </span>
     </div>
   )

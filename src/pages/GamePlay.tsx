@@ -572,14 +572,14 @@ export default function GamePlay() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 min-h-screen flex flex-col">
+    <div className="bg-indigo-50 min-h-screen flex flex-col">
       <WokDryingManager />
       <GameHeader />
 
       {kitchenGrid && kitchenEquipment.length > 0 ? (
         <>
           {/* 1. 주문서 - 상단 고정 (줌 대상 밖) */}
-          <div className="px-4 py-3 bg-gradient-to-r from-yellow-50 via-white to-yellow-50 border-b-4 border-yellow-400 shadow-md">
+          <div className="px-4 py-3 bg-white border-b border-gray-200 shadow-sm">
             <MenuQueue
               onAssignToWok={handleAssignToWok}
               onAssignToFryer={handleAssignToFryer}
@@ -596,29 +596,28 @@ export default function GamePlay() {
           </div>
 
           {/* 3. 하단 - 레시피 가이드 (줌 대상 밖) */}
-          <div className="py-6 px-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-t-4 border-blue-300">
+          <div className="py-4 px-4 bg-white border-t border-gray-200">
             <RecipeGuide />
           </div>
 
           {/* 4. 하단 - 액션 로그 & 화구 사용율 (줌 대상 밖) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 px-4 py-6 bg-gradient-to-br from-gray-100 to-gray-200 border-t-4 border-gray-300 mb-12">
-            <div className="bg-white/80 p-4 rounded-lg border-2 border-gray-300 shadow-md">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 px-4 py-4 bg-white border-t border-gray-200 mb-12">
+            <div className="bg-indigo-50 p-4 rounded-xl border border-gray-200">
               <h4 className="font-bold text-gray-700 mb-2 text-xs tracking-wider flex items-center gap-2">
                 <span>📋</span> 액션 로그
               </h4>
               <ActionLogPanel />
             </div>
-            <div className="bg-white/80 p-4 rounded-lg border-2 border-gray-300 shadow-md">
+            <div className="bg-indigo-50 p-4 rounded-xl border border-gray-200">
               <h4 className="font-bold text-gray-700 mb-2 text-xs tracking-wider flex items-center gap-2">
                 <span>🔥</span> 화구 사용율
               </h4>
               <div className="flex items-center gap-2">
-                <div className="flex-1 h-6 bg-gray-200 rounded-full overflow-hidden border-2 border-gray-300 shadow-inner">
+                <div className="flex-1 h-4 bg-gray-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-orange-400 via-red-500 to-red-600 rounded-full transition-all shadow-md"
+                    className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all"
                     style={{
                       width: `${Math.min(100, burnerUsagePercent)}%`,
-                      boxShadow: '0 0 8px rgba(239, 68, 68, 0.4)',
                     }}
                   />
                 </div>
@@ -675,7 +674,7 @@ export default function GamePlay() {
       )}
 
       {toast && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 px-8 py-4 rounded-xl bg-white text-gray-800 shadow-2xl z-[60] border-2 border-gray-300 font-bold">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl bg-white text-gray-800 shadow-lg z-[60] border border-gray-200 font-medium">
           {toast}
         </div>
       )}
@@ -896,7 +895,7 @@ export default function GamePlay() {
 
       {lastServeError && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 animate-bounce">
-          <div className="bg-orange-500 text-white px-8 py-4 rounded-xl shadow-2xl border-4 border-orange-600">
+          <div className="bg-orange-500 text-white px-6 py-3 rounded-xl shadow-lg">
             <div className="text-center">
               <div className="text-2xl font-bold mb-2">⚠️ 레시피 오류 발생!</div>
               <div className="text-lg font-semibold">{lastServeError.menuName}</div>
@@ -916,7 +915,7 @@ export default function GamePlay() {
         <button
           type="button"
           onClick={openDecoZone}
-          className="fixed bottom-20 right-4 z-30 w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-2xl cursor-pointer transition-transform hover:scale-110 active:scale-95 bg-gradient-to-br from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 border-2 border-purple-400/50"
+          className="fixed bottom-20 right-4 z-30 w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-2xl cursor-pointer transition-transform hover:scale-110 active:scale-95 bg-purple-500 hover:bg-purple-600"
           title="데코존으로 이동"
         >
           🎨

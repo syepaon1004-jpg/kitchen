@@ -41,8 +41,8 @@ export default function BurnerEquipment({
   // 웍이 없으면 렌더링하지 않음
   if (!wok) {
     return (
-      <div className="w-full h-full bg-gray-600 rounded-lg flex items-center justify-center">
-        <span className="text-gray-400 text-xs">웍 없음</span>
+      <div className="w-full h-full bg-indigo-50 rounded-xl border border-gray-200 flex items-center justify-center">
+        <span className="text-gray-500 text-xs">웍 없음</span>
       </div>
     )
   }
@@ -184,7 +184,7 @@ export default function BurnerEquipment({
         <>
           {/* 배경 오버레이 - 별도 div */}
           <div
-            className="fixed inset-0 bg-black/50"
+            className="fixed inset-0 bg-black/40"
             style={{ zIndex: 9998 }}
             onClick={() => {
               console.log('🔲 오버레이 클릭!')
@@ -343,10 +343,10 @@ export default function BurnerEquipment({
               {/* 모바일용 중앙 액션 메뉴 (데스크톱에서는 숨김) */}
               <div className="lg:hidden fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999 }}>
                 <div
-                  className="bg-gray-900/95 rounded-2xl p-4 shadow-2xl border border-gray-700 max-w-[280px]"
+                  className="bg-white rounded-2xl p-4 shadow-2xl border border-gray-200 max-w-[280px]"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="text-center text-white text-sm font-bold mb-3">
+                  <div className="text-center text-gray-800 text-sm font-bold mb-3">
                     {wok.currentMenu}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -358,9 +358,9 @@ export default function BurnerEquipment({
                         handleAction('STIR_FRY')
                       }}
                       disabled={wok.temperature < WOK_TEMP.MIN_STIR_FRY}
-                      className={`min-h-[48px] rounded-xl flex flex-col items-center justify-center gap-1 ${
+                      className={`min-h-[48px] rounded-lg flex flex-col items-center justify-center gap-1 ${
                         wok.temperature < WOK_TEMP.MIN_STIR_FRY
-                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                          ? 'bg-gray-300 text-gray-400 cursor-not-allowed'
                           : 'bg-gradient-to-br from-orange-400 to-red-500 text-white active:scale-95'
                       }`}
                     >
@@ -375,7 +375,7 @@ export default function BurnerEquipment({
                         console.log('💧 물넣기 버튼 클릭! (모바일)')
                         handleAction('ADD_WATER')
                       }}
-                      className="min-h-[48px] rounded-xl bg-gradient-to-br from-blue-400 to-cyan-500 text-white flex flex-col items-center justify-center gap-1 active:scale-95"
+                      className="min-h-[48px] rounded-lg bg-gradient-to-br from-blue-400 to-cyan-500 text-white flex flex-col items-center justify-center gap-1 active:scale-95"
                     >
                       <span className="text-xl">💧</span>
                       <span className="text-[10px] font-bold">물넣기</span>
@@ -388,7 +388,7 @@ export default function BurnerEquipment({
                         console.log('🔄 뒤집기 버튼 클릭! (모바일)')
                         handleAction('FLIP')
                       }}
-                      className="min-h-[48px] rounded-xl bg-gradient-to-br from-purple-400 to-pink-500 text-white flex flex-col items-center justify-center gap-1 active:scale-95"
+                      className="min-h-[48px] rounded-lg bg-gradient-to-br from-purple-400 to-pink-500 text-white flex flex-col items-center justify-center gap-1 active:scale-95"
                     >
                       <span className="text-xl">🔄</span>
                       <span className="text-[10px] font-bold">뒤집기</span>
@@ -405,7 +405,7 @@ export default function BurnerEquipment({
                           setShowRadialMenu(false)
                         }
                       }}
-                      className="min-h-[48px] rounded-xl bg-gradient-to-br from-red-400 to-red-600 text-white flex flex-col items-center justify-center gap-1 active:scale-95"
+                      className="min-h-[48px] rounded-lg bg-gradient-to-br from-red-400 to-red-600 text-white flex flex-col items-center justify-center gap-1 active:scale-95"
                     >
                       <span className="text-xl">🗑️</span>
                       <span className="text-[10px] font-bold">비우기</span>
@@ -414,8 +414,8 @@ export default function BurnerEquipment({
 
                   {/* 불 세기 (화구 켜져있을 때만) */}
                   {wok.isOn && (
-                    <div className="mt-3 pt-3 border-t border-gray-700">
-                      <div className="text-[10px] text-gray-400 text-center mb-2">불 세기</div>
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="text-[10px] text-gray-500 text-center mb-2">불 세기</div>
                       <div className="flex justify-center gap-2">
                         {[1, 2, 3].map((level) => (
                           <button
@@ -426,14 +426,14 @@ export default function BurnerEquipment({
                               setHeatLevel(burnerNumber, level as 1 | 2 | 3)
                               setShowRadialMenu(false)
                             }}
-                            className={`min-w-[48px] min-h-[48px] rounded-xl flex items-center justify-center text-sm font-bold ${
+                            className={`min-w-[48px] min-h-[48px] rounded-lg flex items-center justify-center text-sm font-bold ${
                               wok.heatLevel === level
                                 ? level === 1
                                   ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white ring-2 ring-yellow-300'
                                   : level === 2
                                   ? 'bg-gradient-to-br from-orange-400 to-red-500 text-white ring-2 ring-orange-300'
                                   : 'bg-gradient-to-br from-red-500 to-red-700 text-white ring-2 ring-red-300'
-                                : 'bg-gray-700 text-gray-300'
+                                : 'bg-indigo-100 text-gray-600'
                             }`}
                           >
                             {level === 1 ? '약' : level === 2 ? '중' : '강'}
@@ -447,7 +447,7 @@ export default function BurnerEquipment({
                   <button
                     type="button"
                     onClick={() => setShowRadialMenu(false)}
-                    className="w-full mt-3 py-2 min-h-[44px] rounded-xl bg-gray-700 text-gray-300 text-sm font-bold active:bg-gray-600"
+                    className="w-full mt-3 py-2 min-h-[44px] rounded-xl bg-indigo-100 text-gray-600 text-sm font-bold active:bg-gray-200"
                   >
                     닫기
                   </button>
@@ -461,11 +461,11 @@ export default function BurnerEquipment({
 
       <div
         ref={containerRef}
-        className="w-full h-full bg-gray-800 rounded-lg flex flex-col items-center p-1 relative"
+        className="w-full h-full bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col items-center p-1 relative"
       >
         {/* 온도 게이지 - 상단 컴팩트 */}
         <div className="w-full flex items-center justify-between px-1 mb-1">
-          <span className="text-[9px] font-bold text-gray-400">
+          <span className="text-[9px] font-bold text-gray-500">
             {wok.hasWater ? '💧' : '🌡️'}
           </span>
           <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${
@@ -485,7 +485,7 @@ export default function BurnerEquipment({
         </div>
 
         {/* 온도 바 - 컴팩트 */}
-        <div className="w-full h-1 bg-gray-600 rounded-full overflow-hidden mb-1">
+        <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden mb-1">
           {wok.hasWater ? (
             <div
               className="h-full transition-all duration-300 bg-gradient-to-r from-blue-300 to-blue-500"
@@ -683,7 +683,7 @@ export default function BurnerEquipment({
           </div>
 
           {/* 장비명 */}
-          <span className="text-[8px] text-gray-400 font-bold whitespace-nowrap">
+          <span className="text-[8px] text-gray-500 font-bold whitespace-nowrap">
             {displayName}
           </span>
         </div>
@@ -700,12 +700,10 @@ export default function BurnerEquipment({
                 washWok(burnerNumber)
               }}
               disabled={wok.isOn}
-              className={`px-2 py-1 rounded text-white text-[10px] lg:text-xs font-bold shadow transition-all ${
+              className={`px-2 py-1 rounded-lg text-white text-[10px] lg:text-xs font-bold shadow transition-all ${
                 wok.isOn
                   ? 'bg-gray-400 cursor-not-allowed opacity-50'
-                  : wok.state === 'BURNED'
-                    ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700'
-                    : 'bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700'
+                  : 'bg-teal-500 hover:bg-teal-600'
               }`}
             >
               {wok.isOn ? '⚠️' : '🚰'} 씻기
@@ -717,10 +715,10 @@ export default function BurnerEquipment({
                 playSound(wok.isOn ? 'fire_off' : 'fire_on')
                 toggleBurner(burnerNumber)
               }}
-              className={`px-2 py-1 rounded text-white text-[10px] lg:text-xs font-bold shadow transition-all ${
+              className={`px-2 py-1 rounded-lg text-[10px] lg:text-xs font-bold shadow transition-all ${
                 wok.isOn
-                  ? 'bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 animate-pulse'
-                  : 'bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600'
+                  ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                  : 'bg-indigo-50 hover:bg-indigo-100 text-gray-700'
               }`}
             >
               {wok.isOn ? '🔥 말리는 중' : '🔥 말리기'}
@@ -733,10 +731,10 @@ export default function BurnerEquipment({
                   playSound(wok.isOn ? 'fire_off' : 'fire_on')
                   toggleBurner(burnerNumber)
                 }}
-                className={`px-2 py-1 rounded text-[10px] lg:text-xs font-bold shadow transition-all ${
+                className={`px-2 py-1 rounded-lg text-[10px] lg:text-xs font-bold shadow transition-all ${
                   wok.isOn
-                    ? 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white'
-                    : 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white'
+                    ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                    : 'bg-indigo-50 hover:bg-indigo-100 text-gray-700'
                 }`}
               >
                 {wok.isOn ? '🔥 끄기' : '🔥 켜기'}
@@ -758,7 +756,7 @@ export default function BurnerEquipment({
                         setPlateSelectInstanceId(bundle.id)
                       }
                     }}
-                    className="px-2 py-1 rounded text-[10px] font-bold transition-all shadow-sm bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 animate-pulse"
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold transition-all shadow-sm bg-orange-500 hover:bg-orange-600 text-white"
                   >
                     🍽️ 그릇 선택
                   </button>

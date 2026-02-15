@@ -5,6 +5,7 @@ interface DecoAmountPopupProps {
   ingredientName: string
   minAmount: number
   maxAmount: number
+  defaultAmount?: number
   unit: string
   onConfirm: (amount: number) => void
   onCancel: () => void
@@ -20,12 +21,13 @@ export default function DecoAmountPopup({
   ingredientName,
   minAmount,
   maxAmount,
+  defaultAmount,
   unit,
   onConfirm,
   onCancel,
 }: DecoAmountPopupProps) {
   const { playSound } = useSound()
-  const [amount, setAmount] = useState(minAmount)
+  const [amount, setAmount] = useState(defaultAmount ?? minAmount)
   const inputRef = useRef<HTMLInputElement>(null)
 
   // 자동 포커스
@@ -73,7 +75,7 @@ export default function DecoAmountPopup({
       onClick={onCancel}
     >
       <div
-        className="bg-white rounded-xl max-w-sm w-full p-4 shadow-xl"
+        className="bg-white rounded-2xl max-w-sm w-full p-4 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
@@ -94,7 +96,7 @@ export default function DecoAmountPopup({
             value={amount}
             onChange={(e) => setDirectAmount(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full text-center text-3xl font-bold text-purple-600 py-3 border-2 border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+            className="w-full text-center text-3xl font-bold text-purple-600 py-3 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
           />
         </div>
 
@@ -134,7 +136,7 @@ export default function DecoAmountPopup({
               playSound('cancel')
               onCancel()
             }}
-            className="flex-1 py-3 rounded-lg border-2 border-gray-200 hover:bg-gray-50 font-medium text-gray-600"
+            className="flex-1 py-3 rounded-lg border border-gray-200 hover:bg-gray-50 font-medium text-gray-600"
           >
             취소
           </button>
@@ -145,7 +147,7 @@ export default function DecoAmountPopup({
               onConfirm(amount)
             }}
             disabled={!isValidAmount}
-            className="flex-1 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:from-purple-600 hover:to-pink-600 shadow-lg"
+            className="flex-1 py-3 rounded-lg bg-purple-500 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-purple-600"
           >
             적용 ({amount}{unit})
           </button>

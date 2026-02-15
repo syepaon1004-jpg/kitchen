@@ -545,6 +545,7 @@ export interface AppliedDeco {
   gridPosition: number // 1~9
   imageColor: string
   amount?: number
+  mergedAmount?: number // BUNDLE 합치기 시 실제 합쳐진 수량 (수량 누적 추적용)
 }
 
 export interface DecoPlate {
@@ -817,4 +818,5 @@ export interface BundleInstance {
   plating: PlatingState | null
   ingredients: Array<{ name: string; amount: number; unit: string }>
   errors: number
+  availableAmount: number    // 합치기 가능 잔여 수량 (DECO_SETTING에서 소모됨)
 }
