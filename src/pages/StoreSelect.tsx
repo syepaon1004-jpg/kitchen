@@ -148,6 +148,24 @@ export default function StoreSelect() {
         <p className="text-[#757575] mt-4">등록된 매장이 없습니다.</p>
       )}
 
+      {/* 어드민: 주방 레이아웃 설정 */}
+      {lastStoreId && stores.length > 0 && (
+        <div className="w-full max-w-md mt-4">
+          <button
+            onClick={() => {
+              const store = stores.find((s) => s.id === lastStoreId)
+              if (store) {
+                setStore(store)
+                navigate('/admin/kitchen', { state: { store } })
+              }
+            }}
+            className="w-full py-2 px-6 rounded-xl text-sm text-[#757575] hover:text-primary hover:bg-primary/5 border border-[#E0E0E0] transition"
+          >
+            주방 레이아웃 설정 →
+          </button>
+        </div>
+      )}
+
       {/* 매장 생성 영역 */}
       <div className="w-full max-w-md mt-6">
         <AnimatePresence>

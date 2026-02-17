@@ -2005,9 +2005,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const location = instance.location
 
-    // 2. cleanupEquipment (state는 CLEAN 유지 → 즉시 재사용 가능, 나머지 물리 상태 초기화)
+    // 2. cleanupEquipment (조리 완료 → 웍 DIRTY, 세척 필요)
     if (location.type === 'WOK') {
       updateWok(location.burnerNumber, {
+        state: 'DIRTY' as const,
         isOn: false,
         burnerOnSince: null,
         isStirFrying: false,
@@ -2066,10 +2067,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return
     }
 
-    // 1.5. 웍에서 이동하는 경우, 웍 상태 정리 (state는 CLEAN 유지 → 즉시 재사용 가능)
+    // 1.5. 웍에서 이동하는 경우, 웍 상태 정리 (DIRTY → 세척 필요)
     if (instance.location.type === 'WOK') {
       const burnerNumber = instance.location.burnerNumber
       updateWok(burnerNumber, {
+        state: 'DIRTY' as const,
         currentMenu: null,
         currentOrderId: null,
         currentBundleId: null,
