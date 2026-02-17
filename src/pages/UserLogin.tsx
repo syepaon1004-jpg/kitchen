@@ -24,6 +24,14 @@ export default function UserLogin() {
   const [password, setPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
 
+  // 사용자 생성 모달 상태
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false)
+  const [newUsername, setNewUsername] = useState('')
+  const [newAvatarName, setNewAvatarName] = useState('')
+  const [newRole, setNewRole] = useState<'ADMIN' | 'MANAGER' | 'STAFF'>('STAFF')
+  const [createUserError, setCreateUserError] = useState<string | null>(null)
+  const [isCreatingUser, setIsCreatingUser] = useState(false)
+
   // 매장이 라우트 state로 넘어온 경우 스토어에 반영 (Zustand 비동기 대비)
   useEffect(() => {
     const storeFromState = (location.state as { store?: Store })?.store
@@ -124,6 +132,48 @@ export default function UserLogin() {
     navigate('/')
   }
 
+  const resetCreateUserModal = () => {
+    setNewUsername('')
+    setNewAvatarName('')
+    setNewRole('STAFF')
+    setCreateUserError(null)
+    setShowCreateUserModal(false)
+  }
+
+  const handleCreateUser = async () => {
+    if (!storeToUse) return
+
+    if (!newUsername.trim()) {
+      setCreateUserError('사용자 이름을 입력해주세요')
+      return
+    }
+
+    setIsCreatingUser(true)
+    setCreateUserError(null)
+
+    const { data, error: e } = await supabase
+      .from('users')
+      .insert({
+        store_id: storeToUse.id,
+        username: newUsername.trim(),
+        avatar_name: newAvatarName.trim() || newUsername.trim(),
+        role: newRole,
+      })
+      .select()
+      .single()
+
+    setIsCreatingUser(false)
+
+    if (e) {
+      setCreateUserError(e.message)
+      return
+    }
+
+    // 성공: 목록에 추가 (알파벳 순 정렬)
+    setUsers(prev => [...prev, data].sort((a, b) => (a.avatar_name || '').localeCompare(b.avatar_name || '')))
+    resetCreateUserModal()
+  }
+
   if (!currentStore && !storeToUse) return null
 
   const displayStore = currentStore ?? storeToUse
@@ -181,6 +231,23 @@ export default function UserLogin() {
               </div>
             </motion.div>
           ))}
+
+          {/* 사용자 추가 카드 */}
+          <motion.div
+            role="button"
+            tabIndex={0}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: users.length * 0.04 }}
+            onClick={() => setShowCreateUserModal(true)}
+            onKeyDown={(e) => e.key === 'Enter' && setShowCreateUserModal(true)}
+            className="cursor-pointer p-6 rounded-2xl border-2 border-dashed border-[#BDBDBD] hover:border-primary hover:bg-primary/5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 flex flex-col items-center justify-center"
+          >
+            <div className="text-4xl mb-2 text-[#BDBDBD]">+</div>
+            <div className="font-medium text-[#757575] text-center">
+              사용자 추가
+            </div>
+          </motion.div>
         </div>
       )}
 
@@ -210,7 +277,7 @@ export default function UserLogin() {
 
             {passwordError && (
               <div className="mb-4 text-red-600 text-sm">
-                ❌ {passwordError}
+                {passwordError}
               </div>
             )}
 
@@ -237,13 +304,94 @@ export default function UserLogin() {
             </div>
 
             <div className="mt-4 text-sm text-gray-500">
-              💡 개발 모드: 4자 이상 입력 시 로그인됩니다
+              개발 모드: 4자 이상 입력 시 로그인됩니다
             </div>
           </div>
         </div>
       )}
 
-      {!loading && !error && users.length === 0 && (
+      {/* 사용자 생성 모달 */}
+      {showCreateUserModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-xl">
+            <h2 className="text-2xl font-bold mb-4 text-[#333]">
+              사용자 추가
+            </h2>
+
+            <div className="flex flex-col gap-3">
+              <div>
+                <label htmlFor="new-username" className="block text-sm font-medium mb-1 text-[#333]">
+                  사용자 이름 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="new-username"
+                  type="text"
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  placeholder="사용자 이름"
+                  className="w-full px-4 py-2 border border-[#E0E0E0] rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label htmlFor="new-avatar" className="block text-sm font-medium mb-1 text-[#333]">
+                  표시 이름
+                </label>
+                <input
+                  id="new-avatar"
+                  type="text"
+                  value={newAvatarName}
+                  onChange={(e) => setNewAvatarName(e.target.value)}
+                  placeholder={newUsername || '비워두면 사용자 이름과 동일'}
+                  className="w-full px-4 py-2 border border-[#E0E0E0] rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="new-role" className="block text-sm font-medium mb-1 text-[#333]">
+                  역할
+                </label>
+                <select
+                  id="new-role"
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value as 'ADMIN' | 'MANAGER' | 'STAFF')}
+                  className="w-full px-4 py-2 border border-[#E0E0E0] rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none bg-white"
+                >
+                  <option value="STAFF">STAFF (직원)</option>
+                  <option value="MANAGER">MANAGER (관리자)</option>
+                  <option value="ADMIN">ADMIN (어드민)</option>
+                </select>
+              </div>
+            </div>
+
+            {createUserError && (
+              <p className="text-red-500 text-sm mt-3">{createUserError}</p>
+            )}
+
+            <div className="flex gap-2 mt-4">
+              <button
+                type="button"
+                onClick={handleCreateUser}
+                disabled={isCreatingUser}
+                className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isCreatingUser ? '생성 중...' : '생성'}
+              </button>
+              <button
+                type="button"
+                onClick={resetCreateUserModal}
+                disabled={isCreatingUser}
+                className="flex-1 bg-gray-300 py-2 rounded-lg hover:bg-gray-400 font-medium transition disabled:opacity-50"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && users.length === 0 && !showCreateUserModal && (
         <p className="text-[#757575] py-8">등록된 사용자가 없습니다.</p>
       )}
     </div>

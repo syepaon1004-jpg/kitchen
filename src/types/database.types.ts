@@ -5,6 +5,9 @@ export interface Store {
   id: string
   store_name: string
   store_code: string
+  store_address?: string
+  store_phone?: string
+  is_active?: boolean
   created_at?: string
   updated_at?: string
 }
@@ -14,7 +17,8 @@ export interface User {
   store_id: string
   username: string
   avatar_name: string
-  password_hash?: string
+  role?: 'ADMIN' | 'MANAGER' | 'STAFF'
+  is_active?: boolean
   created_at?: string
 }
 
