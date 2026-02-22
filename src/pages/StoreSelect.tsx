@@ -163,6 +163,18 @@ export default function StoreSelect() {
           >
             주방 레이아웃 설정 →
           </button>
+          <button
+            onClick={() => {
+              const store = stores.find((s) => s.id === lastStoreId)
+              if (store) {
+                setStore(store)
+                navigate('/admin/recipe', { state: { store } })
+              }
+            }}
+            className="w-full py-2 px-6 rounded-xl text-sm text-[#757575] hover:text-primary hover:bg-primary/5 border border-[#E0E0E0] transition mt-2"
+          >
+            레시피 관리 →
+          </button>
         </div>
       )}
 

@@ -6,137 +6,72 @@
 
 ## 전체 Phase 순서
 
-데이터 의존 관계 (FK 순서) 기반. 각 Phase 완료 후 시뮬레이터 접속해서 검증.
-
 ```
-Phase 1: 매장 생성 + 사용자/아바타 생성  ← 현재 진행 중
-   └─ 검증: 새 매장 선택 → 새 사용자 로그인 → /level-select 도달
-
-Phase 2: 주방 레이아웃 설정
-   └─ 검증: 시뮬레이터에서 그리드 + 장비 렌더링 확인
-
-Phase 3: 저장 공간 + 식자재 배치
-   └─ 검증: 시뮬레이터에서 냉장고/서랍 열었을 때 식자재 표시 확인
-
+Phase 1: 매장 생성 + 사용자/아바타 생성           ✅ 완료
+Phase 2: 주방 레이아웃 (드래그앤드롭 장비 배치)     ✅ 완료
+Phase 3: 식자재 배치 (장비 내부 열기 → 재료 추가)   ← 현재
 Phase 4: 레시피 등록
-   └─ 검증: 시뮬레이터에서 메뉴 주문 → 조리 → 데코 → 서빙 전체 플로우
-
 Phase 5: 시뮬레이터 연동 종합 검증
-   └─ 검증: 새 매장 데이터만으로 전체 게임 플레이 가능 확인
-```
-
-## Phase 1: 매장 생성 + 사용자/아바타 생성
-
-### 배경
-
-기존 StoreSelect.tsx는 매장 목록을 SELECT해서 보여주고, UserLogin.tsx는 사용자 목록을 SELECT해서 보여준다. 여기에 "생성" 기능을 추가한다.
-
-### 작업 전 분석 (plan mode)
-
-아래 파일을 먼저 읽고 현재 구조 파악:
-1. src/pages/StoreSelect.tsx — 매장 목록 조회 + 선택 로직
-2. src/pages/UserLogin.tsx — 사용자 목록 조회 + 비밀번호 로그인 로직
-3. src/types/database.types.ts — Store, User 타입 (실제 DB 스키마와 차이 확인)
-4. src/stores/gameStore.ts — setStore, setCurrentUser 함수
-5. src/lib/supabase.ts — Supabase 클라이언트 설정
-6. src/App.tsx — 라우팅 구조
-
-파악 후 구현 계획 보고. 코드 수정은 승인 후.
-
-### 매장 생성 기능
-
-기존 StoreSelect.tsx에 "새 매장 만들기" 버튼 추가, 또는 별도 /admin/stores 경로. 기존 코드 구조 보고 판단.
-
-입력:
-- store_name (필수)
-- store_code (필수, 영문+숫자, 자동 대문자 변환, UNIQUE)
-- store_address (선택)
-- store_phone (선택)
-
-동작:
-- Supabase INSERT → 성공 시 목록 즉시 갱신
-- store_code 중복 에러 핸들링
-- 생성된 매장을 바로 선택 가능
-
-### 사용자/아바타 생성 기능
-
-매장이 선택된 상태에서 해당 매장에 사용자 추가. 기존 UserLogin.tsx에 "사용자 추가" 버튼, 또는 모달.
-
-입력:
-- username (필수)
-- avatar_name (선택, 기본값 'default')
-- role (선택, 기본값 'STAFF', 드롭다운: ADMIN / MANAGER / STAFF)
-
-동작:
-- Supabase INSERT (store_id = 현재 선택된 매장) → 성공 시 목록 즉시 갱신
-- 생성된 사용자로 바로 로그인 가능
-
-### RLS 정책
-
-현재 stores와 users에 INSERT 정책이 없음. 추가 필요:
-
-```sql
--- stores INSERT/UPDATE (어드민용)
-CREATE POLICY "stores_insert" ON stores FOR INSERT WITH CHECK (true);
-CREATE POLICY "stores_update" ON stores FOR UPDATE USING (true);
-
--- users INSERT/UPDATE (어드민용)
-CREATE POLICY "users_insert" ON users FOR INSERT WITH CHECK (true);
-CREATE POLICY "users_update" ON users FOR UPDATE USING (true);
-```
-
-Supabase 대시보드 → Authentication → Policies에서 직접 추가하거나, SQL Editor에서 실행.
-
-### 주의사항
-
-- 기존 StoreSelect/UserLogin 플로우를 깨뜨리지 않을 것
-- 기존 Tailwind 스타일과 일관성 유지
-- 기존 supabase 클라이언트 그대로 사용
-- 한국어 UI
-- database.types.ts의 User 타입에 role 필드가 없으면 추가 필요
-
-### 검증 체크리스트
-
-- [ ] 새 매장 생성 → 매장 목록에 즉시 표시
-- [ ] 새 매장 선택 → /user-login 이동
-- [ ] 새 사용자 생성 → 사용자 목록에 즉시 표시
-- [ ] 새 사용자 선택 → 비밀번호 입력 → /level-select 정상 이동
-- [ ] Supabase 대시보드에서 stores, users 테이블 데이터 확인
-- [ ] 기존 매장/사용자 (MARKET001, 테스트유저) 플로우 정상 작동
-
----
-
-## Phase 2: 주방 레이아웃 설정
-
-### 작업 내용 (Phase 1 완료 후 상세화)
-
-- /admin/kitchen 경로
-- 그리드 크기 설정 (rows × cols)
-- 장비 팔레트에서 드래그앤드롭 배치 (BURNER, SINK, FRYER, MICROWAVE, FREEZER 등)
-- 장비별 config 설정 (화구 수, 바스켓 수 등 → equipment_config JSONB)
-- 장비 위치 저장 (grid_x, grid_y, grid_w, grid_h)
-- kitchen_grids + kitchen_equipment 테이블 INSERT
-
-### RLS 추가 필요
-```sql
-CREATE POLICY "kitchen_grids_insert" ON kitchen_grids FOR INSERT WITH CHECK (true);
-CREATE POLICY "kitchen_grids_update" ON kitchen_grids FOR UPDATE USING (true);
-CREATE POLICY "kitchen_equipment_insert" ON kitchen_equipment FOR INSERT WITH CHECK (true);
-CREATE POLICY "kitchen_equipment_update" ON kitchen_equipment FOR UPDATE USING (true);
-CREATE POLICY "kitchen_equipment_delete" ON kitchen_equipment FOR DELETE USING (true);
 ```
 
 ---
 
-## Phase 3: 저장 공간 + 식자재 배치
+## Phase 1: 매장 생성 + 사용자/아바타 생성 ✅
 
-### 작업 내용 (Phase 2 완료 후 상세화)
+- StoreSelect.tsx에 "새 매장 만들기" 인라인 폼 추가
+- UserLogin.tsx에 "사용자 추가" 모달 추가
+- database.types.ts에 Store(address, phone, is_active), User(role, is_active) 필드 추가
+- RLS: stores, users INSERT/UPDATE 정책 추가
 
-- 폼 기반 (드래그앤드롭 아님)
-- 저장 공간 생성 (location_type, grid 크기, 층수)
-- ingredients_master에서 재료 선택
-- 저장 공간 내 위치 지정 (grid_positions, floor_number)
-- storage_locations + ingredients_inventory 테이블 INSERT
+---
+
+## Phase 2: 주방 레이아웃 설정 ✅
+
+- /admin/kitchen 경로에 KitchenLayoutEditor.tsx 생성 (@dnd-kit 기반)
+- 팔레트에서 9종 장비 드래그앤드롭 배치 (BURNER, SINK, DRAWER_FRIDGE, FRIDGE_4BOX, SEASONING_COUNTER, MICROWAVE, FRYER, FREEZER, PREP_TABLE)
+- 겹침 허용, 면적 작은 장비가 z-index 위로
+- UPSERT 저장 (기존 UUID 유지)
+- 드래그 시 장비 실제 크기만큼 하이라이트
+- kitchenEditorApi.ts 재사용
+- RLS: kitchen_grids, kitchen_equipment INSERT/UPDATE/DELETE 정책 추가
+
+### 작업대 통합
+
+PLATING_STATION, CUTTING_BOARD, COLD_TABLE, WORKTABLE → 팔레트에서 제외.
+PREP_TABLE("작업대/데코존")만 사용. DB CHECK 제약은 유지.
+
+### 컴포넌트 미구현 장비 제외
+
+TORCH, COLD_TABLE, PLATING_STATION, CUTTING_BOARD, WORKTABLE → 팔레트에서 제거.
+시뮬레이터 컴포넌트가 있는 9종만 표시.
+
+---
+
+## Phase 3: 식자재 배치 ← 현재
+
+### 변경된 접근
+
+~~별도 /admin/inventory 페이지~~ → 기존 /admin/kitchen (주방 에디터)에서 장비를 클릭하면 내부가 열리는 방식.
+
+실제 주방에서 하는 것과 동일: "냉장고 열고 → 재료 넣기"
+
+### 흐름
+
+```
+/admin/kitchen (Phase 2 에디터)
+  │
+  ├── 장비 배치 모드 (기존 기능 그대로)
+  │
+  └── 저장 가능한 장비 클릭 → "내부 열기"
+        │
+        ├── 서랍냉장고 → 4칸 서랍 그리드 → 각 칸에 [+] → 재료 추가
+        ├── 4호박스 → 4구역 선택 → 층 선택 → 그리드 → [+] → 재료 추가
+        ├── 조미료대 → 그리드 → [+] → 조미료 추가
+        ├── 냉동고 → 그리드 → [+] → 재료 추가
+        └── 작업대(데코존) → 그리드 → [+] → 데코 재료 추가
+```
+
+### 상세 작업 → docs/PHASE3_INVENTORY.md 참조
 
 ---
 

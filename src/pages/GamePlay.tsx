@@ -44,8 +44,7 @@ type BatchInputState = {
     id: string
     name: string
     sku: string
-    standardAmount: number
-    standardUnit: string
+    unit: string
     raw: any
   }>
 } | null
@@ -319,8 +318,8 @@ export default function GamePlay() {
         id: ingredient.id,
         name: ingredient.ingredient_master?.ingredient_name ?? ingredient.id,
         sku: ingredient.sku_code ?? '',
-        amount: ingredient.standard_amount,
-        unit: ingredient.standard_unit,
+        amount: 0,
+        unit: ingredient.ingredient_master?.base_unit ?? 'g',
         raw: ingredient,
         ingredientMasterId: ingredient.ingredient_master_id,
       }],
@@ -359,8 +358,7 @@ export default function GamePlay() {
         id: ing.id,
         name: ing.name,
         sku: ing.sku,
-        standardAmount: ing.amount,
-        standardUnit: ing.unit,
+        unit: ing.unit,
         raw: ing.raw,
       })),
     })
@@ -761,8 +759,7 @@ export default function GamePlay() {
             id: ing.id,
             name: ing.name,
             sku: ing.sku,
-            standardAmount: ing.amount,
-            standardUnit: ing.unit,
+            unit: ing.unit,
             raw: ing.raw,
           }))}
           targetType="fryer"
@@ -844,7 +841,7 @@ export default function GamePlay() {
                 const success = addIngredientToBundle(bundle.id, matchedRecipeIngredient.id, amount)
                 if (success) {
                   totalSuccess++
-                  console.log(`🍟 바스켓 ${basketNumber}: ${amount}${raw?.standard_unit ?? 'g'} 투입 성공`)
+                  console.log(`🍟 바스켓 ${basketNumber}: ${amount}${raw?.ingredient_master?.base_unit ?? 'g'} 투입 성공`)
                 } else {
                   totalFail++
                 }

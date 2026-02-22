@@ -18,7 +18,7 @@ export default function LevelSelect() {
   // 사용자가 로그인되지 않았거나 매장이 없으면 /user-login으로 리다이렉트
   useEffect(() => {
     if (!currentUser || !currentStore) {
-      navigate('/user-login', { replace: true })
+      navigate('/home', { replace: true })
     }
   }, [currentUser, currentStore, navigate])
 

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useGameStore } from '../stores/gameStore'
 import { LEVEL_LABELS } from '../types/database.types'
@@ -7,12 +7,16 @@ const CURRENT_USER_ID_KEY = 'currentUserId'
 
 export default function AppHeader() {
   const navigate = useNavigate()
+  const location = useLocation()
   const currentStore = useGameStore((s) => s.currentStore)
   const currentUser = useGameStore((s) => s.currentUser)
   const level = useGameStore((s) => s.level)
   const setCurrentUser = useGameStore((s) => s.setCurrentUser)
   const setLevel = useGameStore((s) => s.setLevel)
   const reset = useGameStore((s) => s.reset)
+
+  // 로그인 페이지에서는 헤더 숨기기
+  if (location.pathname === '/') return null
 
   const selectedLevelLabel = level ? LEVEL_LABELS[level] : null
 
@@ -21,11 +25,12 @@ export default function AppHeader() {
     await supabase.auth.signOut()
     setCurrentUser(null)
     setLevel('BEGINNER')
+    useGameStore.getState().setStore(null)
     try {
       localStorage.removeItem(CURRENT_USER_ID_KEY)
     } catch (_) {}
     console.log('🔓 로그아웃 완료')
-    navigate('/user-login')
+    navigate('/')
   }
 
   const handleReset = async () => {
@@ -81,7 +86,7 @@ export default function AppHeader() {
         >
           ← 처음으로
         </button>
-        
+
         {/* 아바타/이름 */}
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold">
@@ -91,7 +96,7 @@ export default function AppHeader() {
             {currentUser?.avatar_name || '플레이어'}
           </span>
         </div>
-        
+
         {/* 난이도 */}
         <div className="text-xs font-medium text-gray-700">
           {selectedLevelLabel || '신입'}

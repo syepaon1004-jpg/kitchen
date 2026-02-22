@@ -176,7 +176,7 @@ export default function GameResult() {
           다시 하기
         </button>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/home')}
           className="py-3 px-5 rounded-xl bg-[#E0E0E0] text-[#333] font-medium"
         >
           홈으로

@@ -85,77 +85,63 @@ VALUES
 -- 4. ingredients_inventory 추가
 
 -- DRAWER_LT (왼쪽 위)
-INSERT INTO ingredients_inventory (store_id, ingredient_master_id, storage_location_id, sku_full, standard_amount, standard_unit, grid_positions, grid_size)
-VALUES 
+INSERT INTO ingredients_inventory (store_id, ingredient_master_id, storage_location_id, sku_full, grid_positions, grid_size)
+VALUES
   ((SELECT id FROM stores WHERE store_code = 'MARKET001'),
    (SELECT id FROM ingredients_master WHERE ingredient_name = '양파'),
    (SELECT id FROM storage_locations WHERE location_code = 'DRAWER_LT' AND store_id = (SELECT id FROM stores WHERE store_code = 'MARKET001')),
    'MARKET001_DRAWER_LT_ONION_50G',
-   50,
-   'g',
    '1,2,3,4',
    '2x2'),
-  
+
   ((SELECT id FROM stores WHERE store_code = 'MARKET001'),
    (SELECT id FROM ingredients_master WHERE ingredient_name = '다진김치'),
    (SELECT id FROM storage_locations WHERE location_code = 'DRAWER_LT' AND store_id = (SELECT id FROM stores WHERE store_code = 'MARKET001')),
    'MARKET001_DRAWER_LT_KIMCHI_50G',
-   50,
-   'g',
    '5,6,7,8',
    '2x2');
 
 -- DRAWER_RT (오른쪽 위)
-INSERT INTO ingredients_inventory (store_id, ingredient_master_id, storage_location_id, sku_full, standard_amount, standard_unit, grid_positions, grid_size)
-VALUES 
+INSERT INTO ingredients_inventory (store_id, ingredient_master_id, storage_location_id, sku_full, grid_positions, grid_size)
+VALUES
   ((SELECT id FROM stores WHERE store_code = 'MARKET001'),
    (SELECT id FROM ingredients_master WHERE ingredient_name = '당근'),
    (SELECT id FROM storage_locations WHERE location_code = 'DRAWER_RT' AND store_id = (SELECT id FROM stores WHERE store_code = 'MARKET001')),
    'MARKET001_DRAWER_RT_CARROT_30G',
-   30,
-   'g',
    '1,3',
    '1x2'),
-  
+
   ((SELECT id FROM stores WHERE store_code = 'MARKET001'),
    (SELECT id FROM ingredients_master WHERE ingredient_name = '애호박'),
    (SELECT id FROM storage_locations WHERE location_code = 'DRAWER_RT' AND store_id = (SELECT id FROM stores WHERE store_code = 'MARKET001')),
    'MARKET001_DRAWER_RT_ZUCCHINI_30G',
-   30,
-   'g',
    '2,4',
    '1x2'),
-  
+
   ((SELECT id FROM stores WHERE store_code = 'MARKET001'),
    (SELECT id FROM ingredients_master WHERE ingredient_name = '밥'),
    (SELECT id FROM storage_locations WHERE location_code = 'DRAWER_RT' AND store_id = (SELECT id FROM stores WHERE store_code = 'MARKET001')),
    'MARKET001_DRAWER_RT_RICE_300G',
-   300,
-   'g',
    '5,6,7,8',
    '2x2');
 
 -- DRAWER_LB (왼쪽 아래)
-INSERT INTO ingredients_inventory (store_id, ingredient_master_id, storage_location_id, sku_full, standard_amount, standard_unit, grid_positions, grid_size)
-VALUES 
+INSERT INTO ingredients_inventory (store_id, ingredient_master_id, storage_location_id, sku_full, grid_positions, grid_size)
+VALUES
   ((SELECT id FROM stores WHERE store_code = 'MARKET001'),
    (SELECT id FROM ingredients_master WHERE ingredient_name = '새우'),
    (SELECT id FROM storage_locations WHERE location_code = 'DRAWER_LB' AND store_id = (SELECT id FROM stores WHERE store_code = 'MARKET001')),
    'MARKET001_DRAWER_LB_SHRIMP_10EA',
-   10,
-   'ea',
    '1,2,3,4,5,6,7,8',
    '4x2');
 
 -- FRIDGE_LT_F2 (냉장고 왼쪽 위 2층)
-INSERT INTO ingredients_inventory (store_id, ingredient_master_id, storage_location_id, sku_full, standard_amount, standard_unit, grid_positions, grid_size, floor_number)
-VALUES 
+INSERT INTO ingredients_inventory (store_id, ingredient_master_id, storage_location_id, sku_full, grid_positions, grid_size, floor_number)
+VALUES
   ((SELECT id FROM stores WHERE store_code = 'MARKET001'),
    (SELECT id FROM ingredients_master WHERE ingredient_name = '계란'),
    (SELECT id FROM storage_locations WHERE location_code = 'FRIDGE_LT_F2' AND store_id = (SELECT id FROM stores WHERE store_code = 'MARKET001')),
    'MARKET001_FRIDGE_LT_F2_EGG_2EA',
-   2,
-   'ea',
    '1,2,4,5',
    '2x2',
    2);

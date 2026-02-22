@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { isDevMode } from '../../utils/env'
 import { useGameStore } from '../../stores/gameStore'
 import { useSound } from '../../hooks/useSound'
 import DecoAmountPopup from './DecoAmountPopup'
@@ -323,7 +324,7 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
 
       {/* ===== [DEBUG] 첫 번째 접시 데코 규칙 ===== */}
       {/* v3: 디버그 정보 - decoSteps/decoIngredients 사용 */}
-      {decoPlates.length > 0 && (
+      {isDevMode && decoPlates.length > 0 && (
         <div className="mx-4 mt-2 p-3 bg-yellow-50 border border-yellow-300 rounded-lg shadow-sm text-xs shrink-0 max-h-48 overflow-auto">
           <div className="font-bold text-yellow-800 mb-2">[DEBUG] 첫 번째 접시 데코 정보 (v3)</div>
           <div className="text-gray-700 mb-1">

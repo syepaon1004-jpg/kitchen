@@ -1163,7 +1163,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           seasoning_name: inv.ingredient_master?.ingredient_name ?? inv.id,
           position_code: inv.storage_location?.location_code ?? 'UNKNOWN',
           position_name: inv.storage_location?.location_name ?? '조미료',
-          base_unit: inv.standard_unit,
+          base_unit: inv.ingredient_master?.base_unit ?? 'g',
           ingredient_master_id: inv.ingredient_master_id,
         }))
 
@@ -1304,89 +1304,104 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   preloadStorageData: async (storeId) => {
-    // v3.1 Fix: kitchen_equipment에서 실제 사용 중인 storage_location_ids 동적 수집
+    // v3.2: 완전 동적화 — kitchen_equipment의 storage_location_ids에서 코드 수집
     const { kitchenEquipment } = get()
-    const dynamicLocationCodes = new Set<string>()
+    const equipmentCodes = new Set<string>()
 
     kitchenEquipment.forEach((eq) => {
       if (eq.storage_location_ids?.length) {
-        eq.storage_location_ids.forEach((locId) => dynamicLocationCodes.add(locId))
+        eq.storage_location_ids.forEach((code) => equipmentCodes.add(code))
       }
     })
 
-    // 기본 냉장고/서랍 코드 + 동적 수집된 코드 병합
-    const baseLocationCodes = [
-      'FRIDGE_LT_F1', 'FRIDGE_LT_F2',
-      'FRIDGE_RT_F1', 'FRIDGE_RT_F2',
-      'FRIDGE_LB_F1', 'FRIDGE_LB_F2',
-      'FRIDGE_RB_F1', 'FRIDGE_RB_F2',
-      'DRAWER_LT', 'DRAWER_RT', 'DRAWER_LB', 'DRAWER_RB',
-      'FREEZER', 'FREEZER_MAIN', 'FREEZER_LT', 'FREEZER_RT', // v3.1: 냉동고 여러 형태 지원
+    if (equipmentCodes.size === 0) {
+      console.log('📦 storageCache: 장비에 연결된 storage_location 없음')
+      set({ storageCache: {} })
+      return
+    }
+
+    // 1. 장비에 연결된 코드들로 storage_locations 조회
+    const { data: parentLocations, error: locErr } = await supabase
+      .from('storage_locations')
+      .select('*')
+      .eq('store_id', storeId)
+      .in('location_code', [...equipmentCodes])
+
+    if (locErr) {
+      console.warn('⚠️ storage_locations 조회 에러:', locErr)
+      set({ storageCache: {} })
+      return
+    }
+
+    // 2. FRIDGE 타입이면 자식 FRIDGE_FLOOR도 조회
+    const fridgeParentIds = (parentLocations ?? [])
+      .filter((l: any) => l.location_type === 'FRIDGE')
+      .map((l: any) => l.id)
+
+    let floorLocations: any[] = []
+    if (fridgeParentIds.length > 0) {
+      const { data: floors, error: floorErr } = await supabase
+        .from('storage_locations')
+        .select('*')
+        .eq('store_id', storeId)
+        .eq('location_type', 'FRIDGE_FLOOR')
+        .in('parent_location_id', fridgeParentIds)
+
+      if (floorErr) {
+        console.warn('⚠️ FRIDGE_FLOOR 조회 에러:', floorErr)
+      } else {
+        floorLocations = floors ?? []
+      }
+    }
+
+    // 3. 캐시 대상 = 부모(FRIDGE 제외) + FRIDGE_FLOOR 자식들
+    const cacheTargets = [
+      ...(parentLocations ?? []).filter((l: any) => l.location_type !== 'FRIDGE'),
+      ...floorLocations,
     ]
 
-    // 중복 제거하여 병합
-    const locationCodes = [...new Set([...baseLocationCodes, ...dynamicLocationCodes])]
+    const locationCodes = cacheTargets.map((l: any) => l.location_code)
     console.log('📦 storageCache 로드 대상:', locationCodes)
 
-    // 모든 위치의 데이터를 병렬로 로드
+    // 4. 모든 위치의 재고를 병렬로 로드
     const results = await Promise.all(
-      locationCodes.map(async (locationCode) => {
+      cacheTargets.map(async (location: any) => {
         try {
-          // .single() 대신 .maybeSingle() 사용 (데이터 없어도 에러 안 남)
-          const { data: location, error: locationError } = await supabase
-            .from('storage_locations')
-            .select('*')
-            .eq('location_code', locationCode)
-            .eq('store_id', storeId)
-            .maybeSingle()
-
-          if (locationError) {
-            console.warn(`⚠️ ${locationCode} 조회 에러:`, locationError)
-            return { locationCode, data: null }
-          }
-
-          if (!location) {
-            return { locationCode, data: null }
-          }
-
-          // v3.1 Fix: grid_positions null 조건 제거 (null이면 기본값 '1' 사용)
           const { data: ingredients, error: ingredientsError } = await supabase
             .from('ingredients_inventory')
             .select('*, ingredient_master:ingredients_master(*)')
             .eq('storage_location_id', location.id)
 
           if (ingredientsError) {
-            console.warn(`⚠️ ${locationCode} 식자재 조회 에러:`, ingredientsError)
-            return { locationCode, data: null }
+            console.warn(`⚠️ ${location.location_code} 식자재 조회 에러:`, ingredientsError)
+            return { locationCode: location.location_code, data: null }
           }
 
           if (!ingredients || ingredients.length === 0) {
-            return { locationCode, data: null }
+            return { locationCode: location.location_code, data: null }
           }
 
           return {
-            locationCode,
+            locationCode: location.location_code,
             data: {
-              title: location.location_name ?? locationCode,
-              gridRows: (location as any).grid_rows ?? 3,
-              gridCols: (location as any).grid_cols ?? 2,
+              title: location.location_name ?? location.location_code,
+              gridRows: location.grid_rows ?? 3,
+              gridCols: location.grid_cols ?? 2,
               ingredients: ingredients as IngredientInventory[],
             },
           }
         } catch (error) {
-          console.error(`❌ ${locationCode} 처리 중 예외:`, error)
-          return { locationCode, data: null }
+          console.error(`❌ ${location.location_code} 처리 중 예외:`, error)
+          return { locationCode: location.location_code, data: null }
         }
       })
     )
 
-    // 캐시에 저장
+    // 5. 캐시에 저장
     const cache: Record<string, any> = {}
-    let successCount = 0
     results.forEach((result) => {
       if (result.data) {
         cache[result.locationCode] = result.data
-        successCount++
       }
     })
 

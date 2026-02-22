@@ -7,7 +7,6 @@ interface SelectedIngredientItem {
   id: string
   name: string
   sku: string
-  amount: number // 기준량
   unit: string
   raw: any
   ingredientMasterId?: string
@@ -38,7 +37,7 @@ export default function SettingAmountPopup({
   const [amounts, setAmounts] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {}
     ingredients.forEach((ing) => {
-      initial[ing.id] = ing.amount // 기준량으로 초기화
+      initial[ing.id] = 0
     })
     return initial
   })
@@ -67,11 +66,6 @@ export default function SettingAmountPopup({
   const handleAmountChange = (id: string, value: string) => {
     const num = parseFloat(value) || 0
     setAmounts((prev) => ({ ...prev, [id]: num }))
-  }
-
-  const handleQuickFill = (id: string, standardAmount: number) => {
-    playSound('add')
-    setAmounts((prev) => ({ ...prev, [id]: standardAmount }))
   }
 
   const handleConfirmAmounts = () => {
@@ -185,7 +179,7 @@ export default function SettingAmountPopup({
                       <div>
                         <div className="font-bold text-gray-800">{ing.name}</div>
                         <div className="text-xs text-gray-500 mt-0.5">
-                          기준량: {ing.amount}{ing.unit}
+                          ({ing.unit})
                         </div>
                       </div>
                     </div>
@@ -206,14 +200,6 @@ export default function SettingAmountPopup({
                       <span className="text-sm text-gray-600 font-medium min-w-[40px]">
                         {ing.unit}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => handleQuickFill(ing.id, ing.amount)}
-                        className="px-3 py-2 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-700 font-medium text-sm"
-                        tabIndex={-1}
-                      >
-                        기준량
-                      </button>
                     </div>
                   </div>
                 ))}

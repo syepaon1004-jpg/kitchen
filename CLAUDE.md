@@ -213,7 +213,7 @@ IngredientMaster (ingredient_name, category, base_unit)
 IngredientInventory (store_id)
   ├─ ingredient_master_id FK → IngredientMaster
   ├─ storage_location_id FK → StorageLocation
-  ├─ sku_code, standard_amount, standard_unit
+  ├─ sku_code
   └─ grid_positions, grid_size, floor_number
 
 StorageLocation (store_id)

@@ -72,8 +72,8 @@ export default function FreezerEquipment({
         id: ing.id,
         name: ing.ingredient_master?.ingredient_name ?? '알 수 없음',
         sku: ing.sku_full ?? '',
-        amount: quantities[ing.id] ?? ing.standard_amount,
-        unit: ing.standard_unit,
+        amount: quantities[ing.id] ?? 1,
+        unit: ing.ingredient_master?.base_unit ?? 'g',
         raw: ing,
         ingredientMasterId: ing.ingredient_master_id,
       }))
@@ -162,7 +162,7 @@ export default function FreezerEquipment({
                         {ingredients.map((ing) => {
                           const isSelected = selectedIngredients.has(ing.id)
                           const name = ing.ingredient_master?.ingredient_name ?? ing.sku_full ?? '알 수 없음'
-                          const currentQty = quantities[ing.id] ?? ing.standard_amount
+                          const currentQty = quantities[ing.id] ?? 1
 
                           return (
                             <div
@@ -177,7 +177,7 @@ export default function FreezerEquipment({
                                 {/* 재료 정보 + 선택 토글 */}
                                 <button
                                   type="button"
-                                  onClick={() => toggleSelect(ing.id, ing.standard_amount)}
+                                  onClick={() => toggleSelect(ing.id, 1)}
                                   className="flex-1 text-left flex items-center gap-2"
                                 >
                                   <div className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
@@ -192,7 +192,7 @@ export default function FreezerEquipment({
                                       {name}
                                     </div>
                                     <div className={`text-xs ${isSelected ? 'text-blue-100' : 'text-gray-500'}`}>
-                                      기본: {ing.standard_amount}{ing.standard_unit}
+                                      ({ing.ingredient_master?.base_unit ?? 'g'})
                                     </div>
                                   </div>
                                 </button>
@@ -227,7 +227,7 @@ export default function FreezerEquipment({
                                       min={1}
                                     />
                                     <span className="text-white text-xs font-medium">
-                                      {ing.standard_unit}
+                                      {ing.ingredient_master?.base_unit ?? 'g'}
                                     </span>
                                     <button
                                       type="button"

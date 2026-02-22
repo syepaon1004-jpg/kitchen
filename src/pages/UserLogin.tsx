@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { isDevMode } from '../utils/env'
 import { supabase } from '../lib/supabase'
 import { useGameStore } from '../stores/gameStore'
 import type { Store } from '../types/database.types'
@@ -303,9 +304,11 @@ export default function UserLogin() {
               </button>
             </div>
 
-            <div className="mt-4 text-sm text-gray-500">
-              개발 모드: 4자 이상 입력 시 로그인됩니다
-            </div>
+            {isDevMode && (
+              <div className="mt-4 text-sm text-gray-500">
+                개발 모드: 4자 이상 입력 시 로그인됩니다
+              </div>
+            )}
           </div>
         </div>
       )}

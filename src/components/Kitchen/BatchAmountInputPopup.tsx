@@ -7,8 +7,7 @@ interface SelectedIngredient {
   id: string
   name: string
   sku: string
-  standardAmount: number
-  standardUnit: string
+  unit: string
   raw: any
 }
 
@@ -121,17 +120,6 @@ export default function BatchAmountInputPopup({
       [ingredientId]: {
         ...prev[ingredientId],
         [targetId]: num,
-      },
-    }))
-  }
-
-  const handleQuickFill = (ingredientId: string, targetId: number, standardAmount: number) => {
-    playSound('add')
-    setAmounts((prev) => ({
-      ...prev,
-      [ingredientId]: {
-        ...prev[ingredientId],
-        [targetId]: standardAmount,
       },
     }))
   }
@@ -317,7 +305,7 @@ export default function BatchAmountInputPopup({
                   <div>
                     <div className="font-bold text-gray-800 text-base">{ing.name}</div>
                     <div className="text-xs text-gray-500 mt-1">
-                      기준량: {ing.standardAmount}{ing.standardUnit}
+                      ({ing.unit})
                     </div>
                   </div>
                 </div>
@@ -345,18 +333,8 @@ export default function BatchAmountInputPopup({
                               targetType === 'wok' ? 'focus:border-blue-500' : 'focus:border-amber-500'
                             }`}
                           />
-                          <span className="text-xs text-gray-600 font-medium">{ing.standardUnit}</span>
+                          <span className="text-xs text-gray-600 font-medium">{ing.unit}</span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleQuickFill(ing.id, target.id, ing.standardAmount)}
-                          className={`text-[10px] font-medium ${
-                            targetType === 'wok' ? 'text-blue-600 hover:text-blue-700' : 'text-amber-600 hover:text-amber-700'
-                          }`}
-                          tabIndex={-1}
-                        >
-                          기준량
-                        </button>
                       </div>
                     )
                   })}

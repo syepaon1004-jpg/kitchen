@@ -33,16 +33,23 @@ export interface KitchenLayout {
   drawer_fridge_config?: Record<string, unknown>
 }
 
+export type LocationType = 'DRAWER' | 'FRIDGE' | 'FRIDGE_FLOOR' | 'SEASONING' | 'DECO_ZONE' | 'FREEZER' | 'PREP_TABLE' | 'OTHER'
+
 export interface StorageLocation {
   id: string
   store_id: string
+  location_type: LocationType
   location_code: string
   location_name: string
-  location_type: string // 'FRIDGE', 'DRAWER', 'SEASONING' 등
-  parent_location_id?: string
+  grid_rows: number
+  grid_cols: number
+  has_floors: boolean
+  floor_count: number
+  parent_location_id?: string | null
   section_code?: string
   section_name?: string
-  position_order?: number
+  position_order: number
+  created_at?: string
 }
 
 export interface IngredientMaster {
@@ -61,8 +68,6 @@ export interface IngredientInventory {
   storage_location_id: string
   sku_code?: string | null // 선택적 SKU 코드 (호환용)
   sku_full?: string | null // 기존 UI 호환용 (deprecated)
-  standard_amount: number
-  standard_unit: string
   description?: string
   grid_positions?: string | null  // GridPopup에서 사용하는 위치 정보
   grid_size?: string | null       // GridPopup에서 사용하는 크기 정보
@@ -115,6 +120,7 @@ export interface Recipe {
   estimated_cooking_time?: number
   menu_type?: 'HOT' | 'COLD' | 'MIXED' | 'FRYING'  // v3.1: 메뉴 타입
   description?: string
+  is_active?: boolean  // Phase 4: 활성 여부
   // v3: steps 대신 recipe_bundles 사용
   recipe_bundles?: RecipeBundle[]
   // 호환성: 기존 코드에서 steps 접근 시 사용 (deprecated)
@@ -450,11 +456,15 @@ export type EquipmentConfig =
 // === Supabase 마스터 테이블 타입 ===
 export interface PlateType {
   id: string
+  store_id?: string               // Phase 4: 매장 소속
   plate_name: string
+  plate_name_en?: string          // Phase 4: 영문명
   plate_type: 'BOWL' | 'FLAT' | 'DEEP' | 'TRAY'
+  plate_category?: string         // Phase 4: BOWL/PLATE/SMALL_BOWL/DEEP_PLATE/STONE_POT/CUP/JAR
   plate_color?: string // 플레이트 색상
   grid_size: number // 3 = 3×3
   deco_slots: number
+  display_order?: number          // Phase 4: 표시 순서
   created_at?: string
 }
 
@@ -463,11 +473,13 @@ export interface RecipeBundle {
   id: string
   recipe_id: string
   bundle_name: string
+  bundle_name_en?: string         // Phase 4: 영문명
   bundle_order: number
   cooking_type: 'HOT' | 'COLD' | 'MICROWAVE' | 'FRYING'  // v3.1: 확장
   is_main_dish: boolean
   plate_type_id: string | null
-  merge_target_bundle_id: string | null
+  merge_order?: number | null     // Phase 4: 합치기 순서 (NULL=합치기 불필요)
+  description?: string            // Phase 4: 묶음 설명
   deco_required: boolean
   created_at?: string
   // Joined data
@@ -486,6 +498,8 @@ export interface DecoIngredient {
   display_color: string
   image_url?: string | null
   storage_location_id?: string | null
+  grid_positions?: string | null     // TEXT "1,2,3"
+  grid_size?: string | null          // TEXT "2x2"
   display_order: number
   created_at?: string
   // JOIN 데이터

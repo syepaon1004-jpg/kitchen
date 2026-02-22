@@ -18,7 +18,6 @@ interface GridPopupState {
   ingredients: Array<{
     id: string
     name: string
-    amount: number
     unit: string
     gridPositions: string
     gridSize: string
@@ -74,8 +73,7 @@ export default function FridgeBox({ onSelectIngredient }: FridgeBoxProps) {
       ingredients: ingredients.map((ing: any) => ({
         id: ing.id,
         name: ing.ingredient_master?.ingredient_name ?? ing.sku_full,
-        amount: ing.standard_amount,
-        unit: ing.standard_unit,
+        unit: ing.ingredient_master?.base_unit ?? 'g',
         gridPositions: ing.grid_positions ?? '1',
         gridSize: ing.grid_size ?? '1x1',
         sku: ing.sku_full,

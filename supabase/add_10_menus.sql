@@ -27,81 +27,67 @@ VALUES
 ON CONFLICT (store_id, seasoning_name) DO NOTHING;
 
 -- 3. 추가 재고 배치 (DRAWER_RB - 오른쪽 아래)
-INSERT INTO ingredients_inventory (store_id, ingredient_master_id, storage_location_id, sku_full, standard_amount, standard_unit, grid_positions, grid_size)
-VALUES 
+INSERT INTO ingredients_inventory (store_id, ingredient_master_id, storage_location_id, sku_full, grid_positions, grid_size)
+VALUES
   -- 치즈
   ((SELECT id FROM stores WHERE store_code = 'MARKET001'),
    (SELECT id FROM ingredients_master WHERE ingredient_name = '치즈'),
    (SELECT id FROM storage_locations WHERE location_code = 'DRAWER_RB' AND store_id = (SELECT id FROM stores WHERE store_code = 'MARKET001')),
    'MARKET001_DRAWER_RB_CHEESE_50G',
-   50,
-   'g',
    '1,2',
    '1x2'),
-  
+
   -- 베이컨
   ((SELECT id FROM stores WHERE store_code = 'MARKET001'),
    (SELECT id FROM ingredients_master WHERE ingredient_name = '베이컨'),
    (SELECT id FROM storage_locations WHERE location_code = 'DRAWER_RB' AND store_id = (SELECT id FROM stores WHERE store_code = 'MARKET001')),
    'MARKET001_DRAWER_RB_BACON_100G',
-   100,
-   'g',
    '3,4',
    '1x2'),
-  
+
   -- 양배추
   ((SELECT id FROM stores WHERE store_code = 'MARKET001'),
    (SELECT id FROM ingredients_master WHERE ingredient_name = '양배추'),
    (SELECT id FROM storage_locations WHERE location_code = 'DRAWER_RB' AND store_id = (SELECT id FROM stores WHERE store_code = 'MARKET001')),
    'MARKET001_DRAWER_RB_CABBAGE_100G',
-   100,
-   'g',
    '5,6',
    '1x2'),
-  
+
   -- 파프리카
   ((SELECT id FROM stores WHERE store_code = 'MARKET001'),
    (SELECT id FROM ingredients_master WHERE ingredient_name = '파프리카'),
    (SELECT id FROM storage_locations WHERE location_code = 'DRAWER_RB' AND store_id = (SELECT id FROM stores WHERE store_code = 'MARKET001')),
    'MARKET001_DRAWER_RB_PAPRIKA_50G',
-   50,
-   'g',
    '7,8',
    '1x2')
 ON CONFLICT (sku_full) DO NOTHING;
 
 -- 4. 추가 재고 배치 (FRIDGE_LT_F1 - 냉장고 왼쪽 위 1층)
-INSERT INTO ingredients_inventory (store_id, ingredient_master_id, storage_location_id, sku_full, standard_amount, standard_unit, grid_positions, grid_size, floor_number)
-VALUES 
+INSERT INTO ingredients_inventory (store_id, ingredient_master_id, storage_location_id, sku_full, grid_positions, grid_size, floor_number)
+VALUES
   -- 참치캔
   ((SELECT id FROM stores WHERE store_code = 'MARKET001'),
    (SELECT id FROM ingredients_master WHERE ingredient_name = '참치캔'),
    (SELECT id FROM storage_locations WHERE location_code = 'FRIDGE_LT_F1' AND store_id = (SELECT id FROM stores WHERE store_code = 'MARKET001')),
    'MARKET001_FRIDGE_LT_F1_TUNA_150G',
-   150,
-   'g',
    '1,2',
    '1x2',
    1),
-  
+
   -- 소고기
   ((SELECT id FROM stores WHERE store_code = 'MARKET001'),
    (SELECT id FROM ingredients_master WHERE ingredient_name = '소고기'),
    (SELECT id FROM storage_locations WHERE location_code = 'FRIDGE_LT_F1' AND store_id = (SELECT id FROM stores WHERE store_code = 'MARKET001')),
    'MARKET001_FRIDGE_LT_F1_BEEF_150G',
-   150,
-   'g',
    '3,4',
    '1x2',
    1),
-  
+
   -- 오징어
   ((SELECT id FROM stores WHERE store_code = 'MARKET001'),
    (SELECT id FROM ingredients_master WHERE ingredient_name = '오징어'),
    (SELECT id FROM storage_locations WHERE location_code = 'FRIDGE_LT_F1' AND store_id = (SELECT id FROM stores WHERE store_code = 'MARKET001')),
    'MARKET001_FRIDGE_LT_F1_SQUID_100G',
-   100,
-   'g',
    '5,6',
    '1x2',
    1)

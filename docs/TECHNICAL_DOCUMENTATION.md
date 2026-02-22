@@ -861,8 +861,6 @@ interface GridPopupProps {
 - ingredient_master_id: uuid (FK)
 - storage_location_id: uuid (FK)
 - sku_full: text
-- standard_amount: numeric
-- standard_unit: text
 - grid_positions: text       // "1" 또는 "1,2"
 - grid_size: text            // "1x1" 또는 "2x1"
 ```

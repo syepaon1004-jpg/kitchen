@@ -25,6 +25,7 @@ import {
   updateEquipment,
   deleteEquipment,
 } from '../../api/kitchenEditorApi'
+import EquipmentStorageModal, { STORABLE_TYPES } from '../../components/admin/EquipmentStorageModal'
 
 // ==================== 상수 ====================
 
@@ -287,12 +288,13 @@ export default function KitchenLayoutEditor() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+  const [storageModalEquipment, setStorageModalEquipment] = useState<LocalEquipment | null>(null)
   const [activeDragType, setActiveDragType] = useState<EquipmentType | null>(null)
   const [activeDragSize, setActiveDragSize] = useState<{ w: number; h: number } | null>(null)
   const [hoverCell, setHoverCell] = useState<{ col: number; row: number } | null>(null)
   const [gridSizeWarning, setGridSizeWarning] = useState<string | null>(null)
 
-  const toastTimer = useRef<ReturnType<typeof setTimeout>>()
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type })
@@ -590,7 +592,7 @@ export default function KitchenLayoutEditor() {
       <div className="bg-white border-b border-[#E0E0E0] px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/home')}
             className="text-[#757575] hover:text-[#333] font-medium"
           >
             ← 돌아가기
@@ -808,6 +810,14 @@ export default function KitchenLayoutEditor() {
                         />
                       </div>
                     </div>
+                    {STORABLE_TYPES.includes(selectedEquipment.equipment_type) && (
+                      <button
+                        onClick={() => setStorageModalEquipment(selectedEquipment)}
+                        className="px-3 py-1.5 bg-indigo-500 text-white rounded text-sm hover:bg-indigo-600 transition"
+                      >
+                        📦 내부 열기
+                      </button>
+                    )}
                     <button
                       onClick={deleteSelected}
                       className="px-3 py-1.5 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition"
@@ -834,6 +844,29 @@ export default function KitchenLayoutEditor() {
           )}
         </DragOverlay>
       </DndContext>
+
+      {/* 장비 내부 (식자재 배치) 모달 */}
+      {storageModalEquipment && store && (
+        <EquipmentStorageModal
+          store={store}
+          equipmentDbId={storageModalEquipment.dbId}
+          equipmentType={storageModalEquipment.equipment_type}
+          equipmentKey={storageModalEquipment.equipment_key}
+          equipmentName={storageModalEquipment.display_name || EQUIPMENT_LABELS[storageModalEquipment.equipment_type] || storageModalEquipment.equipment_type}
+          storageLocationIds={storageModalEquipment.storage_location_ids}
+          onClose={() => setStorageModalEquipment(null)}
+          onStorageLinked={(codes) => {
+            // 장비의 storage_location_ids 로컬 업데이트
+            if (storageModalEquipment) {
+              setEquipment(prev => prev.map(eq =>
+                eq.localId === storageModalEquipment.localId
+                  ? { ...eq, storage_location_ids: codes }
+                  : eq
+              ))
+            }
+          }}
+        />
+      )}
     </div>
   )
 }
