@@ -123,6 +123,8 @@ interface GameStore {
     title: string
     gridRows: number
     gridCols: number
+    locationId?: string          // storage_location UUID (DECO_ZONE 매칭용)
+    locationType?: string        // location_type (DECO_ZONE 판별용)
     ingredients: IngredientInventory[]
   }>
 
@@ -1377,7 +1379,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
             return { locationCode: location.location_code, data: null }
           }
 
+          // DECO_ZONE: grid 메타데이터만 캐싱 (재고는 deco_ingredients에서 별도 관리)
           if (!ingredients || ingredients.length === 0) {
+            if (location.location_type === 'DECO_ZONE') {
+              return {
+                locationCode: location.location_code,
+                data: {
+                  title: location.location_name ?? location.location_code,
+                  gridRows: location.grid_rows ?? 3,
+                  gridCols: location.grid_cols ?? 8,
+                  locationId: location.id,
+                  locationType: location.location_type,
+                  ingredients: [],
+                },
+              }
+            }
             return { locationCode: location.location_code, data: null }
           }
 
@@ -1387,6 +1403,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
               title: location.location_name ?? location.location_code,
               gridRows: location.grid_rows ?? 3,
               gridCols: location.grid_cols ?? 2,
+              locationId: location.id,
+              locationType: location.location_type,
               ingredients: ingredients as IngredientInventory[],
             },
           }

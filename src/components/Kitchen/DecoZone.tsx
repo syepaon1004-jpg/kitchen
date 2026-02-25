@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { isDevMode } from '../../utils/env'
 import { useGameStore } from '../../stores/gameStore'
 import { useSound } from '../../hooks/useSound'
 import DecoAmountPopup from './DecoAmountPopup'
+import { calculateGridArea } from '../../utils/grid'
 // v3: DecoIngredient, DecoStep 사용 (deprecated: DecoDefaultItem, DecoRule)
 // v3.1: BundleInstance 기반 리팩토링
 import type { DecoIngredient, DecoStep, DecoPlate, SelectedDecoIngredient, BundleInstance } from '../../types/database.types'
@@ -64,6 +65,7 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
     exitMergeMode,
     // v3.1: mergeBundle (mergeBundles 대체)
     mergeBundle,
+    storageCache,
   } = useGameStore()
 
   // v3.1: BundleInstance 기반 데이터
@@ -89,6 +91,48 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
     }))
 
   const { playSound } = useSound()
+
+  // storageCache에서 DECO_ZONE 메타 추출 + decoIngredients 그룹핑
+  const decoZoneGridData = useMemo(() => {
+    // storageCache에서 DECO_ZONE 엔트리 찾기 (locationType 기반 — DB 값 판별)
+    const decoZones = Object.entries(storageCache)
+      .filter(([, v]) => v.locationType === 'DECO_ZONE')
+      .map(([code, v]) => ({
+        locationCode: code,
+        locationId: v.locationId,
+        title: v.title,
+        gridRows: v.gridRows,
+        gridCols: v.gridCols,
+      }))
+
+    if (decoZones.length === 0) return null
+
+    // decoIngredients를 storage_location_id로 그룹핑
+    const grouped: Record<string, DecoIngredient[]> = {}
+    const orphaned: DecoIngredient[] = []
+    const decoLocIds = new Set(decoZones.map(z => z.locationId).filter(Boolean))
+
+    for (const item of decoIngredients) {
+      if (decoLocIds.has(item.storage_location_id)) {
+        const zone = decoZones.find(z => z.locationId === item.storage_location_id)!
+        const key = zone.locationCode
+        if (!grouped[key]) grouped[key] = []
+        grouped[key].push(item)
+      } else {
+        // 매칭 안 되는 항목 → 첫 번째 DECO_ZONE에 할당
+        orphaned.push(item)
+      }
+    }
+
+    // orphaned → 첫 번째 DECO_ZONE에 합치기 (어드민 에디터와 동일 로직)
+    if (orphaned.length > 0) {
+      const firstKey = decoZones[0].locationCode
+      if (!grouped[firstKey]) grouped[firstKey] = []
+      grouped[firstKey].push(...orphaned)
+    }
+
+    return { decoZones, grouped }
+  }, [storageCache, decoIngredients])
 
   // 셀 플래시 상태 (시각적 피드백)
   const [cellFlash, setCellFlash] = useState<CellFlash | null>(null)
@@ -368,17 +412,79 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
 
       {/* ===== 상단 재료 영역 (2열) ===== */}
       <div className="grid grid-cols-2 gap-3 p-3 bg-white border-b border-gray-200 shrink-0">
-        {/* 좌측: 상시배치 재료 */}
+        {/* 좌측: 상시배치 재료 — DECO_ZONE grid 기반 렌더링 */}
         <div>
           <div className="text-xs font-bold text-gray-600 mb-2 flex items-center gap-1">
             <span>🧂</span> 상시배치 재료
           </div>
-          {/* v3: decoIngredients 렌더링 */}
-          <div className="flex flex-wrap gap-2">
-            {decoIngredients.length === 0 ? (
-              <div className="text-xs text-gray-400">재료 없음</div>
-            ) : (
-              decoIngredients.map((item) => {
+          {decoIngredients.length === 0 ? (
+            <div className="text-xs text-gray-400">재료 없음</div>
+          ) : decoZoneGridData ? (
+            /* DECO_ZONE 메타 존재 → CSS Grid 렌더링 (어드민 배치와 동일) */
+            decoZoneGridData.decoZones.map((zone) => {
+              const items = decoZoneGridData.grouped[zone.locationCode] ?? []
+              const CELL = 36
+              return (
+                <div key={zone.locationCode} className="mb-2">
+                  {decoZoneGridData.decoZones.length > 1 && (
+                    <div className="text-[10px] text-gray-400 mb-1">{zone.title}</div>
+                  )}
+                  <div
+                    className="inline-grid gap-[1px] bg-gray-200 border border-gray-300 rounded overflow-hidden"
+                    style={{
+                      gridTemplateColumns: `repeat(${zone.gridCols}, ${CELL}px)`,
+                      gridTemplateRows: `repeat(${zone.gridRows}, ${CELL}px)`,
+                    }}
+                  >
+                    {/* 배경 셀 */}
+                    {Array.from({ length: zone.gridRows * zone.gridCols }, (_, i) => (
+                      <div
+                        key={`bg-${i}`}
+                        className="bg-gray-50"
+                        style={{
+                          gridColumn: ((i) % zone.gridCols) + 1,
+                          gridRow: Math.floor(i / zone.gridCols) + 1,
+                        }}
+                      />
+                    ))}
+                    {/* 배치된 데코 재료 */}
+                    {items.map((item) => {
+                      const area = calculateGridArea(item.grid_positions, zone.gridCols)
+                      const itemName = item.ingredient_master?.ingredient_name ?? item.id.slice(0, 8)
+                      const isSelected = selectedDecoIngredient?.id === item.id
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleDecoIngredientClick(item)}
+                          className={`flex flex-col items-center justify-center rounded text-center cursor-pointer border transition-all hover:opacity-80 active:scale-95 z-10 ${
+                            isSelected ? 'ring-2 ring-purple-500 ring-offset-1' : ''
+                          }`}
+                          style={{
+                            gridColumn: `${area.colStart} / ${area.colEnd}`,
+                            gridRow: `${area.rowStart} / ${area.rowEnd}`,
+                            backgroundColor: (item.display_color ?? '#D1D5DB') + '30',
+                            borderColor: item.display_color ?? '#D1D5DB',
+                          }}
+                          title={itemName}
+                        >
+                          <span className="text-[10px] font-bold leading-tight truncate w-full px-0.5" style={{ color: item.display_color ?? '#333' }}>
+                            {itemName}
+                          </span>
+                          <span className="text-[8px] text-gray-500">
+                            {{ GARNISH: '가니쉬', SAUCE: '소스', TOPPING: '토핑' }[item.deco_category]}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })
+          ) : (
+            /* DECO_ZONE 메타 없음 → 기존 폴백 (원형 버튼) */
+            <div className="flex flex-wrap gap-2">
+              {decoIngredients.map((item) => {
                 const itemName = item.ingredient_master?.ingredient_name ?? item.id.slice(0, 8)
                 return (
                   <button
@@ -398,9 +504,9 @@ export default function DecoZone({ onBack }: DecoZoneProps) {
                     </span>
                   </button>
                 )
-              })
-            )}
-          </div>
+              })}
+            </div>
+          )}
         </div>
 
         {/* 우측: 꺼내놓은 식자재 (v3.1: BundleInstance 기반) */}

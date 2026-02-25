@@ -497,9 +497,9 @@ export interface DecoIngredient {
   has_exact_amount: boolean
   display_color: string
   image_url?: string | null
-  storage_location_id?: string | null
-  grid_positions?: string | null     // TEXT "1,2,3"
-  grid_size?: string | null          // TEXT "2x2"
+  storage_location_id: string          // FK → storage_locations (DECO_ZONE)
+  grid_positions: string               // TEXT "1,2,3"
+  grid_size: string                    // TEXT "2x2"
   display_order: number
   created_at?: string
   // JOIN 데이터
