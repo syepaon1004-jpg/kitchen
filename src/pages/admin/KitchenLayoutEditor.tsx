@@ -121,6 +121,10 @@ const EQUIPMENT_DEFAULT_SIZE: Record<string, { w: number; h: number }> = {
   GRILL: { w: 2, h: 2 },
 }
 
+const EQUIPMENT_DEFAULT_CONFIG: Partial<Record<EquipmentType, Record<string, unknown>>> = {
+  PREP_TABLE: { slots: 4, is_deco_zone: true },
+}
+
 const CELL_SIZE = 56
 
 // ==================== 로컬 장비 타입 (임시 id 포함) ====================
@@ -151,7 +155,10 @@ function fromDb(eq: KitchenEquipment): LocalEquipment {
     grid_y: eq.grid_y,
     grid_w: eq.grid_w,
     grid_h: eq.grid_h,
-    equipment_config: eq.equipment_config ?? {},
+    equipment_config: {
+      ...(EQUIPMENT_DEFAULT_CONFIG[eq.equipment_type] ?? {}),
+      ...(eq.equipment_config ?? {}),
+    },
     storage_location_ids: eq.storage_location_ids ?? [],
     display_name: eq.display_name ?? '',
     display_order: eq.display_order ?? 0,
@@ -434,7 +441,7 @@ export default function KitchenLayoutEditor() {
         grid_y: dropRow,
         grid_w: size.w,
         grid_h: size.h,
-        equipment_config: {},
+        equipment_config: EQUIPMENT_DEFAULT_CONFIG[activeData.type] ?? {},
         storage_location_ids: [],
         display_name: defaultName,
         display_order: equipment.length,

@@ -16,7 +16,7 @@ export default function PrepTableEquipment({
   config,
 }: EquipmentComponentProps) {
   const { openDecoZone } = useGameStore()
-  const isDecoZone = config?.is_deco_zone === true
+  const isDecoZone = config?.is_deco_zone !== false
 
   // 데코존이 아닌 일반 작업다이
   if (!isDecoZone) {
